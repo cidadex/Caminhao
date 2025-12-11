@@ -745,7 +745,7 @@ export async function registerRoutes(
             currentKm += kmTraveled;
           }
 
-          const fillingsThisMonth = Math.floor(Math.random() * 6) + 4;
+          const fillingsThisMonth = Math.floor(Math.random() * 3) + 2;
           const vendors = ["Posto Ipiranga", "Posto BR", "Posto Shell", "Posto Texaco", "Posto Ale"];
           const paymentMethods = ["Dinheiro", "Cartão Frota", "PIX", "Cartão Crédito"];
 
@@ -754,8 +754,8 @@ export async function registerRoutes(
             fillDate.setMonth(fillDate.getMonth() - monthsAgo);
             fillDate.setDate(Math.floor(Math.random() * 28) + 1);
             
-            const liters = Math.floor(Math.random() * 300) + 200;
-            const pricePerLiter = (Math.random() * 0.5 + 5.5).toFixed(3);
+            const liters = Math.floor(Math.random() * 150) + 100;
+            const pricePerLiter = (Math.random() * 0.3 + 5.2).toFixed(3);
             const totalCost = (liters * parseFloat(pricePerLiter)).toFixed(2);
             
             await storage.createFuelExpense({
@@ -775,11 +775,11 @@ export async function registerRoutes(
         }
 
         const maintenanceTypes = [
-          { type: "Troca de óleo", minValue: 800, maxValue: 1500 },
-          { type: "Troca de pneus", minValue: 3000, maxValue: 8000 },
-          { type: "Revisão de freios", minValue: 1500, maxValue: 4000 },
-          { type: "Manutenção preventiva", minValue: 2000, maxValue: 5000 },
-          { type: "Troca de filtros", minValue: 500, maxValue: 1200 },
+          { type: "Troca de óleo", minValue: 250, maxValue: 450 },
+          { type: "Troca de pneus", minValue: 800, maxValue: 1500 },
+          { type: "Revisão de freios", minValue: 350, maxValue: 700 },
+          { type: "Manutenção preventiva", minValue: 400, maxValue: 800 },
+          { type: "Troca de filtros", minValue: 150, maxValue: 350 },
         ];
 
         const maintCount = Math.floor(Math.random() * 4) + 1;
@@ -804,14 +804,14 @@ export async function registerRoutes(
         }
 
         const extraCategories = [
-          { category: "Pedágio", minValue: 50, maxValue: 500 },
-          { category: "Estacionamento", minValue: 20, maxValue: 100 },
-          { category: "Alimentação", minValue: 30, maxValue: 150 },
-          { category: "Hospedagem", minValue: 100, maxValue: 300 },
-          { category: "Lavagem", minValue: 50, maxValue: 200 },
+          { category: "Pedágio", minValue: 30, maxValue: 120 },
+          { category: "Estacionamento", minValue: 15, maxValue: 50 },
+          { category: "Alimentação", minValue: 25, maxValue: 80 },
+          { category: "Hospedagem", minValue: 60, maxValue: 150 },
+          { category: "Lavagem", minValue: 40, maxValue: 100 },
         ];
 
-        const extCount = Math.floor(Math.random() * 8) + 3;
+        const extCount = Math.floor(Math.random() * 3) + 2;
         for (let i = 0; i < extCount; i++) {
           const cat = extraCategories[Math.floor(Math.random() * extraCategories.length)];
           const expDate = new Date(today);

@@ -94,14 +94,14 @@ async function seed() {
   console.log(`${mileageData.length} registros de quilometragem criados!`);
 
   const maintenanceTypes = [
-    { type: "Troca de óleo", minValue: 800, maxValue: 1500 },
-    { type: "Troca de pneus", minValue: 3000, maxValue: 8000 },
-    { type: "Revisão de freios", minValue: 1500, maxValue: 4000 },
-    { type: "Manutenção preventiva", minValue: 2000, maxValue: 5000 },
-    { type: "Troca de filtros", minValue: 500, maxValue: 1200 },
-    { type: "Alinhamento e balanceamento", minValue: 300, maxValue: 600 },
-    { type: "Revisão elétrica", minValue: 800, maxValue: 2500 },
-    { type: "Troca de embreagem", minValue: 4000, maxValue: 8000 },
+    { type: "Troca de óleo", minValue: 250, maxValue: 450 },
+    { type: "Troca de pneus", minValue: 800, maxValue: 1500 },
+    { type: "Revisão de freios", minValue: 350, maxValue: 700 },
+    { type: "Manutenção preventiva", minValue: 400, maxValue: 800 },
+    { type: "Troca de filtros", minValue: 150, maxValue: 350 },
+    { type: "Alinhamento e balanceamento", minValue: 120, maxValue: 280 },
+    { type: "Revisão elétrica", minValue: 200, maxValue: 500 },
+    { type: "Troca de embreagem", minValue: 600, maxValue: 1200 },
   ];
 
   const maintenanceData: any[] = [];
@@ -147,15 +147,15 @@ async function seed() {
     let currentOdometer = Math.floor(Math.random() * 50000) + 100000;
     
     for (let monthsAgo = 5; monthsAgo >= 0; monthsAgo--) {
-      const fillingsThisMonth = Math.floor(Math.random() * 6) + 4;
+      const fillingsThisMonth = Math.floor(Math.random() * 3) + 2;
       
       for (let fill = 0; fill < fillingsThisMonth; fill++) {
         const fillDate = new Date(today);
         fillDate.setMonth(fillDate.getMonth() - monthsAgo);
         fillDate.setDate(Math.floor(Math.random() * 28) + 1);
         
-        const liters = Math.floor(Math.random() * 300) + 200;
-        const pricePerLiter = (Math.random() * 0.5 + 5.5).toFixed(3);
+        const liters = Math.floor(Math.random() * 150) + 100;
+        const pricePerLiter = (Math.random() * 0.3 + 5.2).toFixed(3);
         const totalCost = (liters * parseFloat(pricePerLiter)).toFixed(2);
         const kmDriven = Math.floor(Math.random() * 500) + 300;
         
@@ -181,21 +181,21 @@ async function seed() {
   console.log(`${fuelData.length} registros de combustível criados!`);
 
   const extraCategories = [
-    { category: "Pedágio", minValue: 50, maxValue: 500 },
-    { category: "Estacionamento", minValue: 20, maxValue: 100 },
-    { category: "Alimentação", minValue: 30, maxValue: 150 },
-    { category: "Hospedagem", minValue: 100, maxValue: 300 },
-    { category: "Lavagem", minValue: 50, maxValue: 200 },
-    { category: "Documentação", minValue: 100, maxValue: 500 },
-    { category: "Multa", minValue: 150, maxValue: 2000 },
-    { category: "Seguro", minValue: 500, maxValue: 3000 },
-    { category: "Outros", minValue: 50, maxValue: 500 },
+    { category: "Pedágio", minValue: 30, maxValue: 120 },
+    { category: "Estacionamento", minValue: 15, maxValue: 50 },
+    { category: "Alimentação", minValue: 25, maxValue: 80 },
+    { category: "Hospedagem", minValue: 60, maxValue: 150 },
+    { category: "Lavagem", minValue: 40, maxValue: 100 },
+    { category: "Documentação", minValue: 50, maxValue: 200 },
+    { category: "Multa", minValue: 100, maxValue: 350 },
+    { category: "Seguro", minValue: 150, maxValue: 400 },
+    { category: "Outros", minValue: 30, maxValue: 150 },
   ];
 
   const extraData: any[] = [];
 
   for (const truck of allTrucks) {
-    const extraCount = Math.floor(Math.random() * 8) + 3;
+    const extraCount = Math.floor(Math.random() * 3) + 2;
     
     for (let i = 0; i < extraCount; i++) {
       const cat = extraCategories[Math.floor(Math.random() * extraCategories.length)];
