@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   AreaChart,
   Area,
@@ -17,7 +19,10 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { DollarSign, TrendingUp, TrendingDown, Truck, Wrench, Route, Trophy, ArrowUpRight, ArrowDownRight, Sparkles, Fuel, Receipt, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Truck, Wrench, Route, Trophy, ArrowUpRight, ArrowDownRight, Sparkles, Fuel, Receipt, Wallet, Database, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface DashboardData {
   totalGrossRevenue: number;
@@ -170,8 +175,50 @@ function formatNumber(value: number): string {
 const COST_COLORS = ["#f97316", "#06b6d4", "#f59e0b"];
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest<{
+        success: boolean;
+        message: string;
+        summary: {
+          trucks: number;
+          mileageRecords: number;
+          fuelExpenses: number;
+          maintenances: number;
+          extraExpenses: number;
+        };
+      }>("POST", "/api/admin/seed-demo-data");
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Dados criados com sucesso!",
+        description: `${data.summary.trucks} caminhões, ${data.summary.mileageRecords} viagens, ${data.summary.fuelExpenses} abastecimentos, ${data.summary.maintenances} manutenções e ${data.summary.extraExpenses} gastos extras.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trucks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/mileage"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fuel-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maintenances"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/extra-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports/maintenance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports/fuel"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports/extras"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reports/mileage"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao criar dados",
+        description: error.message || "Ocorreu um erro ao criar os dados de demonstração.",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -217,11 +264,33 @@ export default function DashboardPage() {
             Acompanhe o desempenho da sua frota de {dashboardData.truckCount} caminhões
           </p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
-          <TrendingUp className="h-4 w-4 text-emerald-600" />
-          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-            Margem de lucro: {profitMargin}%
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          {user?.role === "admin" && dashboardData.truckCount === 0 && (
+            <Button
+              onClick={() => seedMutation.mutate()}
+              disabled={seedMutation.isPending}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              data-testid="button-seed-demo-data"
+            >
+              {seedMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Criando dados...
+                </>
+              ) : (
+                <>
+                  <Database className="mr-2 h-4 w-4" />
+                  Popular Dados de Demonstração
+                </>
+              )}
+            </Button>
+          )}
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+            <TrendingUp className="h-4 w-4 text-emerald-600" />
+            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              Margem de lucro: {profitMargin}%
+            </span>
+          </div>
         </div>
       </div>
 
