@@ -27,6 +27,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Calculator,
+  HeartPulse,
 } from "lucide-react";
 
 const menuItems = [
@@ -39,6 +40,11 @@ const menuItems = [
     title: "Caminhões",
     url: "/caminhoes",
     icon: Truck,
+  },
+  {
+    title: "Saúde da Frota",
+    url: "/saude-frota",
+    icon: HeartPulse,
   },
   {
     title: "Registro de KM",
