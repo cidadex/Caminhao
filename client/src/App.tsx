@@ -24,6 +24,7 @@ import PayablesPage from "@/pages/payables";
 import ReceivablesPage from "@/pages/receivables";
 import FinancialSummaryPage from "@/pages/financial-summary";
 import FleetHealthPage from "@/pages/fleet-health";
+import RoutesPage from "@/pages/routes";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: () => JSX.Element; adminOnly?: boolean }) {
@@ -175,6 +176,11 @@ function Router() {
       <Route path="/financeiro">
         <AuthenticatedLayout>
           <ProtectedRoute component={FinancialSummaryPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/rotas">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={RoutesPage} />
         </AuthenticatedLayout>
       </Route>
       <Route>

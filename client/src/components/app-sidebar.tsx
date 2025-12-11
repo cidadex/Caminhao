@@ -28,6 +28,7 @@ import {
   ArrowUpCircle,
   Calculator,
   HeartPulse,
+  MapPin,
 } from "lucide-react";
 
 const menuItems = [
@@ -65,6 +66,11 @@ const menuItems = [
     title: "Gastos Extras",
     url: "/gastos-extras",
     icon: Receipt,
+  },
+  {
+    title: "Rotas",
+    url: "/rotas",
+    icon: MapPin,
   },
 ];
 

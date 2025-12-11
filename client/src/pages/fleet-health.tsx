@@ -109,7 +109,6 @@ function TruckHealthCard({
                 <h3 className="font-semibold truncate">{truck.plate}</h3>
                 <Badge 
                   variant={getRiskBadgeVariant(truck.riskLevel)} 
-                  size="sm"
                   data-testid={`badge-risk-${truck.truckId}`}
                 >
                   {getRiskLabel(truck.riskLevel)}
