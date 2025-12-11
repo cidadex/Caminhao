@@ -310,7 +310,25 @@ Responda APENAS com o JSON, sem texto adicional.`;
       throw new Error("No response from AI");
     }
 
-    const aiResult = JSON.parse(content);
+    // Clean and parse JSON response - handle markdown code blocks
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith("```json")) {
+      cleanedContent = cleanedContent.slice(7);
+    } else if (cleanedContent.startsWith("```")) {
+      cleanedContent = cleanedContent.slice(3);
+    }
+    if (cleanedContent.endsWith("```")) {
+      cleanedContent = cleanedContent.slice(0, -3);
+    }
+    cleanedContent = cleanedContent.trim();
+
+    let aiResult: any;
+    try {
+      aiResult = JSON.parse(cleanedContent);
+    } catch (parseError) {
+      console.error("Failed to parse AI response as JSON:", cleanedContent);
+      throw new Error("Invalid JSON response from AI");
+    }
 
     return {
       summary: aiResult.resumo_geral || "",

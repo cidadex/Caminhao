@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Truck } from "@shared/schema";
+import type { TruckWithDriver, Driver } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Truck as TruckIcon, Pencil, Trash2, Loader2, Gauge, Calendar, Hash, Sparkles } from "lucide-react";
+import { Plus, Truck as TruckIcon, Pencil, Trash2, Loader2, Gauge, Calendar, Hash, Sparkles, User } from "lucide-react";
 
 const truckFormSchema = z.object({
   number: z.string().min(1, "Número é obrigatório"),
@@ -43,6 +43,7 @@ const truckFormSchema = z.object({
   year: z.coerce.number().min(1900).max(new Date().getFullYear() + 1),
   totalKm: z.coerce.number().min(0).optional(),
   status: z.enum(["active", "maintenance", "inactive"]),
+  mainDriverId: z.string().nullable().optional(),
 });
 
 type TruckFormData = z.infer<typeof truckFormSchema>;
@@ -52,12 +53,16 @@ function TruckFormDialog({
   open,
   onOpenChange,
 }: {
-  truck?: Truck;
+  truck?: TruckWithDriver;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { toast } = useToast();
   const isEditing = !!truck;
+
+  const { data: drivers } = useQuery<Driver[]>({
+    queryKey: ["/api/drivers"],
+  });
 
   const form = useForm<TruckFormData>({
     resolver: zodResolver(truckFormSchema),
@@ -68,6 +73,7 @@ function TruckFormDialog({
       year: truck?.year || new Date().getFullYear(),
       totalKm: truck?.totalKm ? Number(truck.totalKm) : 0,
       status: (truck?.status as "active" | "maintenance" | "inactive") || "active",
+      mainDriverId: truck?.mainDriverId || null,
     },
   });
 
@@ -217,6 +223,34 @@ function TruckFormDialog({
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="mainDriverId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Motorista Principal</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "_none_" ? null : value)} 
+                    value={field.value || "_none_"}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-11" data-testid="select-truck-driver">
+                        <SelectValue placeholder="Selecione um motorista" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="_none_">Nenhum motorista</SelectItem>
+                      {drivers?.map((driver) => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          {driver.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 type="button"
@@ -250,7 +284,7 @@ function DeleteConfirmDialog({
   open,
   onOpenChange,
 }: {
-  truck: Truck;
+  truck: TruckWithDriver;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -348,10 +382,10 @@ function getStatusConfig(status: string) {
 export default function TrucksPage() {
   const { isAdmin } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingTruck, setEditingTruck] = useState<Truck | undefined>();
-  const [deletingTruck, setDeletingTruck] = useState<Truck | undefined>();
+  const [editingTruck, setEditingTruck] = useState<TruckWithDriver | undefined>();
+  const [deletingTruck, setDeletingTruck] = useState<TruckWithDriver | undefined>();
 
-  const { data: trucks, isLoading } = useQuery<Truck[]>({
+  const { data: trucks, isLoading } = useQuery<TruckWithDriver[]>({
     queryKey: ["/api/trucks"],
   });
 
@@ -438,6 +472,12 @@ export default function TrucksPage() {
                         <span>{formatKm(truck.totalKm)} km</span>
                       </div>
                     </div>
+                    {truck.mainDriver && (
+                      <div className="flex items-center gap-1.5 pt-2 text-sm text-primary">
+                        <User className="h-3.5 w-3.5" />
+                        <span>{truck.mainDriver.name}</span>
+                      </div>
+                    )}
                   </div>
 
                   {isAdmin && (
