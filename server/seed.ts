@@ -1,11 +1,10 @@
 import { db } from "./db";
-import { users, trucks, mileageRecords, maintenances } from "@shared/schema";
+import { users, trucks, mileageRecords, maintenances, fuelExpenses, extraExpenses } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
 async function seed() {
   console.log("Iniciando seed do banco de dados...");
 
-  // Create admin user
   const adminPassword = await bcrypt.hash("admin123", 10);
   const [admin] = await db.insert(users).values({
     username: "admin",
@@ -14,7 +13,6 @@ async function seed() {
     role: "admin",
   }).onConflictDoNothing().returning();
 
-  // Create regular user
   const userPassword = await bcrypt.hash("usuario123", 10);
   const [regularUser] = await db.insert(users).values({
     username: "operador",
@@ -27,7 +25,6 @@ async function seed() {
 
   console.log("Usuários criados!");
 
-  // Create trucks
   const trucksData = [
     { number: "001", plate: "ABC-1234", model: "Volvo FH 540", year: 2022, status: "active" as const, totalKm: "45320" },
     { number: "002", plate: "DEF-5678", model: "Scania R450", year: 2021, status: "active" as const, totalKm: "62150" },
@@ -44,7 +41,6 @@ async function seed() {
   
   console.log(`${allTrucks.length} caminhões criados!`);
 
-  // Create mileage records for the last 6 months
   const mileageData: any[] = [];
   const routes = [
     "São Paulo, SP → Rio de Janeiro, RJ",
@@ -97,7 +93,6 @@ async function seed() {
   await db.insert(mileageRecords).values(mileageData).onConflictDoNothing();
   console.log(`${mileageData.length} registros de quilometragem criados!`);
 
-  // Create maintenance records
   const maintenanceTypes = [
     { type: "Troca de óleo", minValue: 800, maxValue: 1500 },
     { type: "Troca de pneus", minValue: 3000, maxValue: 8000 },
@@ -127,7 +122,7 @@ async function seed() {
         userId: userId,
         date: maintDate,
         type: maintType.type,
-        description: `${maintType.type} - Caminhão ${truck.number}`,
+        observations: `${maintType.type} - Caminhão ${truck.number}`,
         value: String(value),
         receiptUrl: null,
       });
@@ -136,6 +131,115 @@ async function seed() {
 
   await db.insert(maintenances).values(maintenanceData).onConflictDoNothing();
   console.log(`${maintenanceData.length} registros de manutenção criados!`);
+
+  const fuelData: any[] = [];
+  const vendors = [
+    "Posto Ipiranga",
+    "Posto BR",
+    "Posto Shell",
+    "Posto Texaco",
+    "Posto Ale",
+    "Posto Petrobras",
+  ];
+  const paymentMethods = ["Dinheiro", "Cartão Frota", "PIX", "Cartão Crédito"];
+
+  for (const truck of allTrucks) {
+    let currentOdometer = Math.floor(Math.random() * 50000) + 100000;
+    
+    for (let monthsAgo = 5; monthsAgo >= 0; monthsAgo--) {
+      const fillingsThisMonth = Math.floor(Math.random() * 6) + 4;
+      
+      for (let fill = 0; fill < fillingsThisMonth; fill++) {
+        const fillDate = new Date(today);
+        fillDate.setMonth(fillDate.getMonth() - monthsAgo);
+        fillDate.setDate(Math.floor(Math.random() * 28) + 1);
+        
+        const liters = Math.floor(Math.random() * 300) + 200;
+        const pricePerLiter = (Math.random() * 0.5 + 5.5).toFixed(3);
+        const totalCost = (liters * parseFloat(pricePerLiter)).toFixed(2);
+        const kmDriven = Math.floor(Math.random() * 500) + 300;
+        
+        fuelData.push({
+          truckId: truck.id,
+          userId: userId,
+          date: fillDate,
+          liters: String(liters),
+          pricePerLiter: pricePerLiter,
+          totalCost: totalCost,
+          odometer: String(currentOdometer),
+          vendor: vendors[Math.floor(Math.random() * vendors.length)],
+          paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+          receiptUrl: null,
+        });
+        
+        currentOdometer += kmDriven;
+      }
+    }
+  }
+
+  await db.insert(fuelExpenses).values(fuelData).onConflictDoNothing();
+  console.log(`${fuelData.length} registros de combustível criados!`);
+
+  const extraCategories = [
+    { category: "Pedágio", minValue: 50, maxValue: 500 },
+    { category: "Estacionamento", minValue: 20, maxValue: 100 },
+    { category: "Alimentação", minValue: 30, maxValue: 150 },
+    { category: "Hospedagem", minValue: 100, maxValue: 300 },
+    { category: "Lavagem", minValue: 50, maxValue: 200 },
+    { category: "Documentação", minValue: 100, maxValue: 500 },
+    { category: "Multa", minValue: 150, maxValue: 2000 },
+    { category: "Seguro", minValue: 500, maxValue: 3000 },
+    { category: "Outros", minValue: 50, maxValue: 500 },
+  ];
+
+  const extraData: any[] = [];
+
+  for (const truck of allTrucks) {
+    const extraCount = Math.floor(Math.random() * 8) + 3;
+    
+    for (let i = 0; i < extraCount; i++) {
+      const cat = extraCategories[Math.floor(Math.random() * extraCategories.length)];
+      const expDate = new Date(today);
+      expDate.setMonth(expDate.getMonth() - Math.floor(Math.random() * 6));
+      expDate.setDate(Math.floor(Math.random() * 28) + 1);
+      
+      const value = Math.floor(Math.random() * (cat.maxValue - cat.minValue)) + cat.minValue;
+      
+      extraData.push({
+        truckId: truck.id,
+        userId: userId,
+        date: expDate,
+        category: cat.category,
+        description: `${cat.category} - Caminhão ${truck.number}`,
+        totalCost: String(value),
+        notes: null,
+        receiptUrl: null,
+      });
+    }
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const cat = extraCategories[Math.floor(Math.random() * extraCategories.length)];
+    const expDate = new Date(today);
+    expDate.setMonth(expDate.getMonth() - Math.floor(Math.random() * 6));
+    expDate.setDate(Math.floor(Math.random() * 28) + 1);
+    
+    const value = Math.floor(Math.random() * (cat.maxValue - cat.minValue)) + cat.minValue;
+    
+    extraData.push({
+      truckId: null,
+      userId: userId,
+      date: expDate,
+      category: cat.category,
+      description: `${cat.category} - Gasto Geral da Empresa`,
+      totalCost: String(value),
+      notes: "Despesa administrativa geral",
+      receiptUrl: null,
+    });
+  }
+
+  await db.insert(extraExpenses).values(extraData).onConflictDoNothing();
+  console.log(`${extraData.length} registros de gastos extras criados!`);
 
   console.log("\nSeed concluído com sucesso!");
   console.log("\nCredenciais de acesso:");

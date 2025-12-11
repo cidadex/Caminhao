@@ -11,6 +11,8 @@ import {
   insertTruckSchema,
   insertMileageRecordSchema,
   insertMaintenanceSchema,
+  insertFuelExpenseSchema,
+  insertExtraExpenseSchema,
   loginSchema,
 } from "@shared/schema";
 
@@ -272,6 +274,68 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/fuel-expenses", authMiddleware as any, async (_req: Request, res: Response) => {
+    try {
+      const expenses = await storage.getFuelExpenses();
+      res.json(expenses);
+    } catch (error) {
+      console.error("Error fetching fuel expenses:", error);
+      res.status(500).json({ message: "Erro ao buscar abastecimentos" });
+    }
+  });
+
+  app.post("/api/fuel-expenses", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const liters = Number(req.body.liters);
+      const pricePerLiter = Number(req.body.pricePerLiter);
+      const totalCost = liters * pricePerLiter;
+
+      const data = {
+        ...req.body,
+        userId: req.user!.id,
+        date: new Date(req.body.date),
+        liters: String(liters),
+        pricePerLiter: String(pricePerLiter),
+        totalCost: String(totalCost),
+        odometer: String(req.body.odometer),
+      };
+
+      const expense = await storage.createFuelExpense(data);
+      res.status(201).json(expense);
+    } catch (error) {
+      console.error("Error creating fuel expense:", error);
+      res.status(500).json({ message: "Erro ao criar abastecimento" });
+    }
+  });
+
+  app.get("/api/extra-expenses", authMiddleware as any, async (_req: Request, res: Response) => {
+    try {
+      const expenses = await storage.getExtraExpenses();
+      res.json(expenses);
+    } catch (error) {
+      console.error("Error fetching extra expenses:", error);
+      res.status(500).json({ message: "Erro ao buscar gastos extras" });
+    }
+  });
+
+  app.post("/api/extra-expenses", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const data = {
+        ...req.body,
+        userId: req.user!.id,
+        date: new Date(req.body.date),
+        totalCost: String(req.body.totalCost),
+        truckId: req.body.truckId || null,
+      };
+
+      const expense = await storage.createExtraExpense(data);
+      res.status(201).json(expense);
+    } catch (error) {
+      console.error("Error creating extra expense:", error);
+      res.status(500).json({ message: "Erro ao criar gasto extra" });
+    }
+  });
+
   app.post("/api/upload", authMiddleware as any, upload.single("file"), (req: Request, res: Response) => {
     if (!req.file) {
       return res.status(400).json({ message: "Nenhum arquivo enviado" });
@@ -318,11 +382,11 @@ export async function registerRoutes(
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", "attachment; filename=relatorio.csv");
 
-        let csv = "Caminhão,Placa,Viagens,KM Total,Faturamento Bruto,Manutenções,Faturamento Líquido,Média R$/KM\n";
+        let csv = "Caminhão,Placa,Viagens,KM Total,Faturamento Bruto,Manutenção,Combustível,Extras,Custo Total,Faturamento Líquido,Média R$/KM\n";
         data.data.forEach((row) => {
-          csv += `"${row.truck.number}","${row.truck.plate}",${row.tripCount},${row.totalKm},${row.grossRevenue.toFixed(2)},${row.maintenanceCost.toFixed(2)},${row.netRevenue.toFixed(2)},${row.avgValuePerKm.toFixed(2)}\n`;
+          csv += `"${row.truck.number}","${row.truck.plate}",${row.tripCount},${row.totalKm},${row.grossRevenue.toFixed(2)},${row.maintenanceCost.toFixed(2)},${row.fuelCost.toFixed(2)},${row.extraCost.toFixed(2)},${row.totalCost.toFixed(2)},${row.netRevenue.toFixed(2)},${row.avgValuePerKm.toFixed(2)}\n`;
         });
-        csv += `\nTOTAIS,,${data.data.reduce((s, r) => s + r.tripCount, 0)},${data.totals.totalKm},${data.totals.grossRevenue.toFixed(2)},${data.totals.maintenanceCost.toFixed(2)},${data.totals.netRevenue.toFixed(2)},\n`;
+        csv += `\nTOTAIS,,${data.data.reduce((s, r) => s + r.tripCount, 0)},${data.totals.totalKm},${data.totals.grossRevenue.toFixed(2)},${data.totals.maintenanceCost.toFixed(2)},${data.totals.fuelCost.toFixed(2)},${data.totals.extraCost.toFixed(2)},${data.totals.totalCost.toFixed(2)},${data.totals.netRevenue.toFixed(2)},\n`;
 
         return res.send(csv);
       }
@@ -331,11 +395,11 @@ export async function registerRoutes(
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", "attachment; filename=relatorio.csv");
 
-        let csv = "Caminhão;Placa;Viagens;KM Total;Faturamento Bruto;Manutenções;Faturamento Líquido;Média R$/KM\n";
+        let csv = "Caminhão;Placa;Viagens;KM Total;Faturamento Bruto;Manutenção;Combustível;Extras;Custo Total;Faturamento Líquido;Média R$/KM\n";
         data.data.forEach((row) => {
-          csv += `"${row.truck.number}";"${row.truck.plate}";${row.tripCount};${row.totalKm};${row.grossRevenue.toFixed(2).replace(".", ",")};${row.maintenanceCost.toFixed(2).replace(".", ",")};${row.netRevenue.toFixed(2).replace(".", ",")};${row.avgValuePerKm.toFixed(2).replace(".", ",")}\n`;
+          csv += `"${row.truck.number}";"${row.truck.plate}";${row.tripCount};${row.totalKm};${row.grossRevenue.toFixed(2).replace(".", ",")};${row.maintenanceCost.toFixed(2).replace(".", ",")};${row.fuelCost.toFixed(2).replace(".", ",")};${row.extraCost.toFixed(2).replace(".", ",")};${row.totalCost.toFixed(2).replace(".", ",")};${row.netRevenue.toFixed(2).replace(".", ",")};${row.avgValuePerKm.toFixed(2).replace(".", ",")}\n`;
         });
-        csv += `\nTOTAIS;;${data.data.reduce((s, r) => s + r.tripCount, 0)};${data.totals.totalKm};${data.totals.grossRevenue.toFixed(2).replace(".", ",")};${data.totals.maintenanceCost.toFixed(2).replace(".", ",")};${data.totals.netRevenue.toFixed(2).replace(".", ",")};\n`;
+        csv += `\nTOTAIS;;${data.data.reduce((s, r) => s + r.tripCount, 0)};${data.totals.totalKm};${data.totals.grossRevenue.toFixed(2).replace(".", ",")};${data.totals.maintenanceCost.toFixed(2).replace(".", ",")};${data.totals.fuelCost.toFixed(2).replace(".", ",")};${data.totals.extraCost.toFixed(2).replace(".", ",")};${data.totals.totalCost.toFixed(2).replace(".", ",")};${data.totals.netRevenue.toFixed(2).replace(".", ",")};\n`;
 
         return res.send(csv);
       }
@@ -362,6 +426,9 @@ export async function registerRoutes(
         doc.fontSize(11);
         doc.text(`Faturamento Bruto: R$ ${data.totals.grossRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
         doc.text(`Gastos com Manutenção: R$ ${data.totals.maintenanceCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+        doc.text(`Gastos com Combustível: R$ ${data.totals.fuelCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+        doc.text(`Gastos Extras: R$ ${data.totals.extraCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+        doc.text(`Custo Operacional Total: R$ ${data.totals.totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
         doc.text(`Faturamento Líquido: R$ ${data.totals.netRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
         doc.text(`Total de KM: ${data.totals.totalKm.toLocaleString("pt-BR")} km`);
         doc.moveDown(2);
@@ -375,7 +442,10 @@ export async function registerRoutes(
           doc.text(`  Modelo: ${row.truck.model}`);
           doc.text(`  Viagens: ${row.tripCount} | KM Total: ${row.totalKm.toLocaleString("pt-BR")} km`);
           doc.text(`  Faturamento Bruto: R$ ${row.grossRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
-          doc.text(`  Manutenções: R$ ${row.maintenanceCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+          doc.text(`  Manutenção: R$ ${row.maintenanceCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+          doc.text(`  Combustível: R$ ${row.fuelCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+          doc.text(`  Gastos Extras: R$ ${row.extraCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
+          doc.text(`  Custo Total: R$ ${row.totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
           doc.text(`  Faturamento Líquido: R$ ${row.netRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
           doc.text(`  Média R$/KM: R$ ${row.avgValuePerKm.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
           doc.moveDown();

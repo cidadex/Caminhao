@@ -3,6 +3,8 @@ import {
   trucks,
   mileageRecords,
   maintenances,
+  fuelExpenses,
+  extraExpenses,
   type User,
   type InsertUser,
   type Truck,
@@ -11,9 +13,13 @@ import {
   type InsertMileageRecord,
   type Maintenance,
   type InsertMaintenance,
+  type FuelExpense,
+  type InsertFuelExpense,
+  type ExtraExpense,
+  type InsertExtraExpense,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, isNull } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -34,14 +40,25 @@ export interface IStorage {
   getMaintenancesByTruck(truckId: string): Promise<Maintenance[]>;
   createMaintenance(maintenance: InsertMaintenance): Promise<Maintenance>;
 
+  getFuelExpenses(): Promise<(FuelExpense & { truck?: Truck })[]>;
+  getFuelExpensesByTruck(truckId: string): Promise<FuelExpense[]>;
+  createFuelExpense(expense: InsertFuelExpense): Promise<FuelExpense>;
+
+  getExtraExpenses(): Promise<(ExtraExpense & { truck?: Truck })[]>;
+  getExtraExpensesByTruck(truckId: string): Promise<ExtraExpense[]>;
+  createExtraExpense(expense: InsertExtraExpense): Promise<ExtraExpense>;
+
   getDashboardData(): Promise<{
     totalGrossRevenue: number;
     totalNetRevenue: number;
     totalKmTraveled: number;
     totalMaintenanceCost: number;
+    totalFuelCost: number;
+    totalExtraCost: number;
+    totalOperationalCost: number;
     truckCount: number;
-    monthlyData: Array<{ month: string; revenue: number; maintenance: number }>;
-    truckComparison: Array<{ truck: string; grossRevenue: number; netRevenue: number; maintenanceCost: number }>;
+    monthlyData: Array<{ month: string; revenue: number; maintenance: number; fuel: number; extra: number }>;
+    truckComparison: Array<{ truck: string; grossRevenue: number; netRevenue: number; maintenanceCost: number; fuelCost: number; extraCost: number }>;
     ranking: Array<{ id: string; number: string; netRevenue: number; kmTraveled: number }>;
   }>;
 
@@ -50,15 +67,23 @@ export interface IStorage {
       truck: { id: string; number: string; plate: string; model: string };
       grossRevenue: number;
       maintenanceCost: number;
+      fuelCost: number;
+      extraCost: number;
+      totalCost: number;
       netRevenue: number;
       totalKm: number;
       avgValuePerKm: number;
       tripCount: number;
       maintenanceCount: number;
+      fuelCount: number;
+      extraCount: number;
     }>;
     totals: {
       grossRevenue: number;
       maintenanceCost: number;
+      fuelCost: number;
+      extraCost: number;
+      totalCost: number;
       netRevenue: number;
       totalKm: number;
     };
@@ -169,23 +194,80 @@ export class DatabaseStorage implements IStorage {
     return newMaintenance;
   }
 
+  async getFuelExpenses(): Promise<(FuelExpense & { truck?: Truck })[]> {
+    const records = await db
+      .select()
+      .from(fuelExpenses)
+      .leftJoin(trucks, eq(fuelExpenses.truckId, trucks.id))
+      .orderBy(desc(fuelExpenses.date));
+
+    return records.map((r) => ({
+      ...r.fuel_expenses,
+      truck: r.trucks || undefined,
+    }));
+  }
+
+  async getFuelExpensesByTruck(truckId: string): Promise<FuelExpense[]> {
+    return db
+      .select()
+      .from(fuelExpenses)
+      .where(eq(fuelExpenses.truckId, truckId))
+      .orderBy(desc(fuelExpenses.date));
+  }
+
+  async createFuelExpense(expense: InsertFuelExpense): Promise<FuelExpense> {
+    const [newExpense] = await db.insert(fuelExpenses).values(expense).returning();
+    return newExpense;
+  }
+
+  async getExtraExpenses(): Promise<(ExtraExpense & { truck?: Truck })[]> {
+    const records = await db
+      .select()
+      .from(extraExpenses)
+      .leftJoin(trucks, eq(extraExpenses.truckId, trucks.id))
+      .orderBy(desc(extraExpenses.date));
+
+    return records.map((r) => ({
+      ...r.extra_expenses,
+      truck: r.trucks || undefined,
+    }));
+  }
+
+  async getExtraExpensesByTruck(truckId: string): Promise<ExtraExpense[]> {
+    return db
+      .select()
+      .from(extraExpenses)
+      .where(eq(extraExpenses.truckId, truckId))
+      .orderBy(desc(extraExpenses.date));
+  }
+
+  async createExtraExpense(expense: InsertExtraExpense): Promise<ExtraExpense> {
+    const [newExpense] = await db.insert(extraExpenses).values(expense).returning();
+    return newExpense;
+  }
+
   async getDashboardData() {
     const allTrucks = await this.getTrucks();
     const allMileage = await db.select().from(mileageRecords);
     const allMaintenances = await db.select().from(maintenances);
+    const allFuel = await db.select().from(fuelExpenses);
+    const allExtra = await db.select().from(extraExpenses);
 
     const totalGrossRevenue = allMileage.reduce((sum, r) => sum + Number(r.valueReceived), 0);
     const totalMaintenanceCost = allMaintenances.reduce((sum, m) => sum + Number(m.value), 0);
-    const totalNetRevenue = totalGrossRevenue - totalMaintenanceCost;
+    const totalFuelCost = allFuel.reduce((sum, f) => sum + Number(f.totalCost), 0);
+    const totalExtraCost = allExtra.reduce((sum, e) => sum + Number(e.totalCost), 0);
+    const totalOperationalCost = totalMaintenanceCost + totalFuelCost + totalExtraCost;
+    const totalNetRevenue = totalGrossRevenue - totalOperationalCost;
     const totalKmTraveled = allMileage.reduce((sum, r) => sum + Number(r.kmTraveled), 0);
 
-    const monthlyMap = new Map<string, { revenue: number; maintenance: number }>();
+    const monthlyMap = new Map<string, { revenue: number; maintenance: number; fuel: number; extra: number }>();
     const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
     allMileage.forEach((r) => {
       const date = new Date(r.date);
       const monthKey = `${months[date.getMonth()]}/${date.getFullYear().toString().slice(-2)}`;
-      const current = monthlyMap.get(monthKey) || { revenue: 0, maintenance: 0 };
+      const current = monthlyMap.get(monthKey) || { revenue: 0, maintenance: 0, fuel: 0, extra: 0 };
       current.revenue += Number(r.valueReceived);
       monthlyMap.set(monthKey, current);
     });
@@ -193,8 +275,24 @@ export class DatabaseStorage implements IStorage {
     allMaintenances.forEach((m) => {
       const date = new Date(m.date);
       const monthKey = `${months[date.getMonth()]}/${date.getFullYear().toString().slice(-2)}`;
-      const current = monthlyMap.get(monthKey) || { revenue: 0, maintenance: 0 };
+      const current = monthlyMap.get(monthKey) || { revenue: 0, maintenance: 0, fuel: 0, extra: 0 };
       current.maintenance += Number(m.value);
+      monthlyMap.set(monthKey, current);
+    });
+
+    allFuel.forEach((f) => {
+      const date = new Date(f.date);
+      const monthKey = `${months[date.getMonth()]}/${date.getFullYear().toString().slice(-2)}`;
+      const current = monthlyMap.get(monthKey) || { revenue: 0, maintenance: 0, fuel: 0, extra: 0 };
+      current.fuel += Number(f.totalCost);
+      monthlyMap.set(monthKey, current);
+    });
+
+    allExtra.forEach((e) => {
+      const date = new Date(e.date);
+      const monthKey = `${months[date.getMonth()]}/${date.getFullYear().toString().slice(-2)}`;
+      const current = monthlyMap.get(monthKey) || { revenue: 0, maintenance: 0, fuel: 0, extra: 0 };
+      current.extra += Number(e.totalCost);
       monthlyMap.set(monthKey, current);
     });
 
@@ -205,14 +303,20 @@ export class DatabaseStorage implements IStorage {
     const truckComparison = allTrucks.map((truck) => {
       const truckMileage = allMileage.filter((r) => r.truckId === truck.id);
       const truckMaintenance = allMaintenances.filter((m) => m.truckId === truck.id);
+      const truckFuel = allFuel.filter((f) => f.truckId === truck.id);
+      const truckExtra = allExtra.filter((e) => e.truckId === truck.id);
       const grossRevenue = truckMileage.reduce((sum, r) => sum + Number(r.valueReceived), 0);
       const maintenanceCost = truckMaintenance.reduce((sum, m) => sum + Number(m.value), 0);
+      const fuelCost = truckFuel.reduce((sum, f) => sum + Number(f.totalCost), 0);
+      const extraCost = truckExtra.reduce((sum, e) => sum + Number(e.totalCost), 0);
 
       return {
         truck: `Caminhão ${truck.number}`,
         grossRevenue,
-        netRevenue: grossRevenue - maintenanceCost,
+        netRevenue: grossRevenue - maintenanceCost - fuelCost - extraCost,
         maintenanceCost,
+        fuelCost,
+        extraCost,
       };
     });
 
@@ -220,14 +324,18 @@ export class DatabaseStorage implements IStorage {
       .map((truck) => {
         const truckMileage = allMileage.filter((r) => r.truckId === truck.id);
         const truckMaintenance = allMaintenances.filter((m) => m.truckId === truck.id);
+        const truckFuel = allFuel.filter((f) => f.truckId === truck.id);
+        const truckExtra = allExtra.filter((e) => e.truckId === truck.id);
         const grossRevenue = truckMileage.reduce((sum, r) => sum + Number(r.valueReceived), 0);
         const maintenanceCost = truckMaintenance.reduce((sum, m) => sum + Number(m.value), 0);
+        const fuelCost = truckFuel.reduce((sum, f) => sum + Number(f.totalCost), 0);
+        const extraCost = truckExtra.reduce((sum, e) => sum + Number(e.totalCost), 0);
         const kmTraveled = truckMileage.reduce((sum, r) => sum + Number(r.kmTraveled), 0);
 
         return {
           id: truck.id,
           number: truck.number,
-          netRevenue: grossRevenue - maintenanceCost,
+          netRevenue: grossRevenue - maintenanceCost - fuelCost - extraCost,
           kmTraveled,
         };
       })
@@ -238,6 +346,9 @@ export class DatabaseStorage implements IStorage {
       totalNetRevenue,
       totalKmTraveled,
       totalMaintenanceCost,
+      totalFuelCost,
+      totalExtraCost,
+      totalOperationalCost,
       truckCount: allTrucks.length,
       monthlyData,
       truckComparison,
@@ -250,30 +361,25 @@ export class DatabaseStorage implements IStorage {
       ? await db.select().from(trucks).where(eq(trucks.id, truckId))
       : await this.getTrucks();
 
-    let mileageQuery = db.select().from(mileageRecords);
-    let maintenanceQuery = db.select().from(maintenances);
-
     const conditions: any[] = [];
-    if (startDate) {
-      conditions.push(gte(mileageRecords.date, startDate));
-    }
-    if (endDate) {
-      conditions.push(lte(mileageRecords.date, endDate));
-    }
-    if (truckId) {
-      conditions.push(eq(mileageRecords.truckId, truckId));
-    }
+    if (startDate) conditions.push(gte(mileageRecords.date, startDate));
+    if (endDate) conditions.push(lte(mileageRecords.date, endDate));
+    if (truckId) conditions.push(eq(mileageRecords.truckId, truckId));
 
     const maintConditions: any[] = [];
-    if (startDate) {
-      maintConditions.push(gte(maintenances.date, startDate));
-    }
-    if (endDate) {
-      maintConditions.push(lte(maintenances.date, endDate));
-    }
-    if (truckId) {
-      maintConditions.push(eq(maintenances.truckId, truckId));
-    }
+    if (startDate) maintConditions.push(gte(maintenances.date, startDate));
+    if (endDate) maintConditions.push(lte(maintenances.date, endDate));
+    if (truckId) maintConditions.push(eq(maintenances.truckId, truckId));
+
+    const fuelConditions: any[] = [];
+    if (startDate) fuelConditions.push(gte(fuelExpenses.date, startDate));
+    if (endDate) fuelConditions.push(lte(fuelExpenses.date, endDate));
+    if (truckId) fuelConditions.push(eq(fuelExpenses.truckId, truckId));
+
+    const extraConditions: any[] = [];
+    if (startDate) extraConditions.push(gte(extraExpenses.date, startDate));
+    if (endDate) extraConditions.push(lte(extraExpenses.date, endDate));
+    if (truckId) extraConditions.push(eq(extraExpenses.truckId, truckId));
 
     const allMileage = conditions.length > 0
       ? await db.select().from(mileageRecords).where(and(...conditions))
@@ -283,11 +389,25 @@ export class DatabaseStorage implements IStorage {
       ? await db.select().from(maintenances).where(and(...maintConditions))
       : await db.select().from(maintenances);
 
+    const allFuel = fuelConditions.length > 0
+      ? await db.select().from(fuelExpenses).where(and(...fuelConditions))
+      : await db.select().from(fuelExpenses);
+
+    const allExtra = extraConditions.length > 0
+      ? await db.select().from(extraExpenses).where(and(...extraConditions))
+      : await db.select().from(extraExpenses);
+
     const data = allTrucks.map((truck) => {
       const truckMileage = allMileage.filter((r) => r.truckId === truck.id);
       const truckMaintenance = allMaintenances.filter((m) => m.truckId === truck.id);
+      const truckFuel = allFuel.filter((f) => f.truckId === truck.id);
+      const truckExtra = allExtra.filter((e) => e.truckId === truck.id);
+      
       const grossRevenue = truckMileage.reduce((sum, r) => sum + Number(r.valueReceived), 0);
       const maintenanceCost = truckMaintenance.reduce((sum, m) => sum + Number(m.value), 0);
+      const fuelCost = truckFuel.reduce((sum, f) => sum + Number(f.totalCost), 0);
+      const extraCost = truckExtra.reduce((sum, e) => sum + Number(e.totalCost), 0);
+      const totalCost = maintenanceCost + fuelCost + extraCost;
       const totalKm = truckMileage.reduce((sum, r) => sum + Number(r.kmTraveled), 0);
 
       return {
@@ -299,17 +419,25 @@ export class DatabaseStorage implements IStorage {
         },
         grossRevenue,
         maintenanceCost,
-        netRevenue: grossRevenue - maintenanceCost,
+        fuelCost,
+        extraCost,
+        totalCost,
+        netRevenue: grossRevenue - totalCost,
         totalKm,
         avgValuePerKm: totalKm > 0 ? grossRevenue / totalKm : 0,
         tripCount: truckMileage.length,
         maintenanceCount: truckMaintenance.length,
+        fuelCount: truckFuel.length,
+        extraCount: truckExtra.length,
       };
     });
 
     const totals = {
       grossRevenue: data.reduce((sum, d) => sum + d.grossRevenue, 0),
       maintenanceCost: data.reduce((sum, d) => sum + d.maintenanceCost, 0),
+      fuelCost: data.reduce((sum, d) => sum + d.fuelCost, 0),
+      extraCost: data.reduce((sum, d) => sum + d.extraCost, 0),
+      totalCost: data.reduce((sum, d) => sum + d.totalCost, 0),
       netRevenue: data.reduce((sum, d) => sum + d.netRevenue, 0),
       totalKm: data.reduce((sum, d) => sum + d.totalKm, 0),
     };

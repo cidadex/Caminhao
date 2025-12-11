@@ -50,15 +50,47 @@ export const maintenances = pgTable("maintenances", {
   receiptUrl: text("receipt_url"),
 });
 
+// Fuel expenses table (abastecimentos)
+export const fuelExpenses = pgTable("fuel_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  truckId: varchar("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(),
+  liters: decimal("liters", { precision: 10, scale: 2 }).notNull(),
+  pricePerLiter: decimal("price_per_liter", { precision: 10, scale: 3 }).notNull(),
+  totalCost: decimal("total_cost", { precision: 12, scale: 2 }).notNull(),
+  odometer: decimal("odometer", { precision: 12, scale: 2 }).notNull(),
+  vendor: text("vendor"),
+  paymentMethod: text("payment_method"),
+  receiptUrl: text("receipt_url"),
+});
+
+// Extra expenses table (gastos extras)
+export const extraExpenses = pgTable("extra_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  truckId: varchar("truck_id").references(() => trucks.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(),
+  category: text("category").notNull(),
+  description: text("description").notNull(),
+  totalCost: decimal("total_cost", { precision: 12, scale: 2 }).notNull(),
+  notes: text("notes"),
+  receiptUrl: text("receipt_url"),
+});
+
 // Relations - defined AFTER all tables
 export const usersRelations = relations(users, ({ many }) => ({
   mileageRecords: many(mileageRecords),
   maintenances: many(maintenances),
+  fuelExpenses: many(fuelExpenses),
+  extraExpenses: many(extraExpenses),
 }));
 
 export const trucksRelations = relations(trucks, ({ many }) => ({
   mileageRecords: many(mileageRecords),
   maintenances: many(maintenances),
+  fuelExpenses: many(fuelExpenses),
+  extraExpenses: many(extraExpenses),
 }));
 
 export const mileageRecordsRelations = relations(mileageRecords, ({ one }) => ({
@@ -83,11 +115,35 @@ export const maintenancesRelations = relations(maintenances, ({ one }) => ({
   }),
 }));
 
+export const fuelExpensesRelations = relations(fuelExpenses, ({ one }) => ({
+  truck: one(trucks, {
+    fields: [fuelExpenses.truckId],
+    references: [trucks.id],
+  }),
+  user: one(users, {
+    fields: [fuelExpenses.userId],
+    references: [users.id],
+  }),
+}));
+
+export const extraExpensesRelations = relations(extraExpenses, ({ one }) => ({
+  truck: one(trucks, {
+    fields: [extraExpenses.truckId],
+    references: [trucks.id],
+  }),
+  user: one(users, {
+    fields: [extraExpenses.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertTruckSchema = createInsertSchema(trucks).omit({ id: true });
 export const insertMileageRecordSchema = createInsertSchema(mileageRecords).omit({ id: true, kmTraveled: true, valuePerKm: true });
 export const insertMaintenanceSchema = createInsertSchema(maintenances).omit({ id: true });
+export const insertFuelExpenseSchema = createInsertSchema(fuelExpenses).omit({ id: true });
+export const insertExtraExpenseSchema = createInsertSchema(extraExpenses).omit({ id: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -101,6 +157,12 @@ export type MileageRecord = typeof mileageRecords.$inferSelect;
 
 export type InsertMaintenance = z.infer<typeof insertMaintenanceSchema>;
 export type Maintenance = typeof maintenances.$inferSelect;
+
+export type InsertFuelExpense = z.infer<typeof insertFuelExpenseSchema>;
+export type FuelExpense = typeof fuelExpenses.$inferSelect;
+
+export type InsertExtraExpense = z.infer<typeof insertExtraExpenseSchema>;
+export type ExtraExpense = typeof extraExpenses.$inferSelect;
 
 // Login schema
 export const loginSchema = z.object({
