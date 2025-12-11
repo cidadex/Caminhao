@@ -1,6 +1,7 @@
 import {
   users,
   trucks,
+  drivers,
   mileageRecords,
   maintenances,
   fuelExpenses,
@@ -9,8 +10,11 @@ import {
   receivables,
   type User,
   type InsertUser,
+  type Driver,
+  type InsertDriver,
   type Truck,
   type InsertTruck,
+  type TruckWithDriver,
   type MileageRecord,
   type InsertMileageRecord,
   type Maintenance,
@@ -32,8 +36,16 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
 
+  getDrivers(): Promise<Driver[]>;
+  getDriver(id: string): Promise<Driver | undefined>;
+  createDriver(driver: InsertDriver): Promise<Driver>;
+  updateDriver(id: string, driver: Partial<InsertDriver>): Promise<Driver | undefined>;
+  deleteDriver(id: string): Promise<boolean>;
+
   getTrucks(): Promise<Truck[]>;
+  getTrucksWithDrivers(): Promise<TruckWithDriver[]>;
   getTruck(id: string): Promise<Truck | undefined>;
+  getTruckWithDriver(id: string): Promise<TruckWithDriver | undefined>;
   createTruck(truck: InsertTruck): Promise<Truck>;
   updateTruck(id: string, truck: Partial<InsertTruck>): Promise<Truck | undefined>;
   deleteTruck(id: string): Promise<boolean>;
@@ -122,13 +134,69 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getDrivers(): Promise<Driver[]> {
+    return db.select().from(drivers).orderBy(drivers.name);
+  }
+
+  async getDriver(id: string): Promise<Driver | undefined> {
+    const [driver] = await db.select().from(drivers).where(eq(drivers.id, id));
+    return driver || undefined;
+  }
+
+  async createDriver(driver: InsertDriver): Promise<Driver> {
+    const [newDriver] = await db.insert(drivers).values(driver).returning();
+    return newDriver;
+  }
+
+  async updateDriver(id: string, driverData: Partial<InsertDriver>): Promise<Driver | undefined> {
+    const [updated] = await db
+      .update(drivers)
+      .set(driverData)
+      .where(eq(drivers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteDriver(id: string): Promise<boolean> {
+    const result = await db.delete(drivers).where(eq(drivers.id, id)).returning();
+    return result.length > 0;
+  }
+
   async getTrucks(): Promise<Truck[]> {
     return db.select().from(trucks).orderBy(trucks.number);
+  }
+
+  async getTrucksWithDrivers(): Promise<TruckWithDriver[]> {
+    const results = await db
+      .select()
+      .from(trucks)
+      .leftJoin(drivers, eq(trucks.mainDriverId, drivers.id))
+      .orderBy(trucks.number);
+    
+    return results.map(r => ({
+      ...r.trucks,
+      mainDriver: r.drivers || undefined,
+    }));
   }
 
   async getTruck(id: string): Promise<Truck | undefined> {
     const [truck] = await db.select().from(trucks).where(eq(trucks.id, id));
     return truck || undefined;
+  }
+
+  async getTruckWithDriver(id: string): Promise<TruckWithDriver | undefined> {
+    const [result] = await db
+      .select()
+      .from(trucks)
+      .leftJoin(drivers, eq(trucks.mainDriverId, drivers.id))
+      .where(eq(trucks.id, id));
+    
+    if (!result) return undefined;
+    
+    return {
+      ...result.trucks,
+      mainDriver: result.drivers || undefined,
+    };
   }
 
   async createTruck(truck: InsertTruck): Promise<Truck> {

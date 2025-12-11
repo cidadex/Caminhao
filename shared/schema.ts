@@ -13,6 +13,17 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"),
 });
 
+// Drivers table (Motoristas)
+export const drivers = pgTable("drivers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  cpf: text("cpf").unique(),
+  cnh: text("cnh"),
+  cnhExpiry: timestamp("cnh_expiry"),
+  phone: text("phone"),
+  status: text("status").notNull().default("active"),
+});
+
 // Trucks table
 export const trucks = pgTable("trucks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -22,6 +33,7 @@ export const trucks = pgTable("trucks", {
   year: integer("year").notNull(),
   totalKm: decimal("total_km", { precision: 12, scale: 2 }).notNull().default("0"),
   status: text("status").notNull().default("active"),
+  mainDriverId: varchar("main_driver_id").references(() => drivers.id, { onDelete: "set null" }),
 });
 
 // Mileage records table
@@ -116,7 +128,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   extraExpenses: many(extraExpenses),
 }));
 
-export const trucksRelations = relations(trucks, ({ many }) => ({
+export const driversRelations = relations(drivers, ({ many }) => ({
+  trucks: many(trucks),
+}));
+
+export const trucksRelations = relations(trucks, ({ one, many }) => ({
+  mainDriver: one(drivers, {
+    fields: [trucks.mainDriverId],
+    references: [drivers.id],
+  }),
   mileageRecords: many(mileageRecords),
   maintenances: many(maintenances),
   fuelExpenses: many(fuelExpenses),
@@ -169,6 +189,7 @@ export const extraExpensesRelations = relations(extraExpenses, ({ one }) => ({
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+export const insertDriverSchema = createInsertSchema(drivers).omit({ id: true });
 export const insertTruckSchema = createInsertSchema(trucks).omit({ id: true });
 export const insertMileageRecordSchema = createInsertSchema(mileageRecords).omit({ id: true, kmTraveled: true, valuePerKm: true });
 export const insertMaintenanceSchema = createInsertSchema(maintenances).omit({ id: true });
@@ -181,8 +202,12 @@ export const insertReceivableSchema = createInsertSchema(receivables).omit({ id:
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+export type InsertDriver = z.infer<typeof insertDriverSchema>;
+export type Driver = typeof drivers.$inferSelect;
+
 export type InsertTruck = z.infer<typeof insertTruckSchema>;
 export type Truck = typeof trucks.$inferSelect;
+export type TruckWithDriver = Truck & { mainDriver?: Driver };
 
 export type InsertMileageRecord = z.infer<typeof insertMileageRecordSchema>;
 export type MileageRecord = typeof mileageRecords.$inferSelect;

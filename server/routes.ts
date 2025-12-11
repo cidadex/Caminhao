@@ -10,17 +10,20 @@ import fs from "fs";
 import PDFDocument from "pdfkit";
 import {
   insertTruckSchema,
+  insertDriverSchema,
   insertMileageRecordSchema,
   insertMaintenanceSchema,
   insertFuelExpenseSchema,
   insertExtraExpenseSchema,
   loginSchema,
   trucks,
+  drivers,
   mileageRecords,
   maintenances,
   fuelExpenses,
   extraExpenses,
 } from "@shared/schema";
+import { getFleetHealthSummary, generateTruckDiagnostic } from "./fleet-health";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "truckflow-secret-key-2024";
 
@@ -149,10 +152,92 @@ export async function registerRoutes(
     }
   });
 
+  // Drivers routes
+  app.get("/api/drivers", authMiddleware as any, async (_req: Request, res: Response) => {
+    try {
+      const driversList = await storage.getDrivers();
+      res.json(driversList);
+    } catch (error) {
+      console.error("Error fetching drivers:", error);
+      res.status(500).json({ message: "Erro ao buscar motoristas" });
+    }
+  });
+
+  app.post("/api/drivers", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const validation = insertDriverSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+      }
+      const driver = await storage.createDriver(validation.data);
+      res.status(201).json(driver);
+    } catch (error: any) {
+      console.error("Error creating driver:", error);
+      if (error.message?.includes("unique") || error.code === "23505") {
+        return res.status(400).json({ message: "Motorista com este CPF já existe" });
+      }
+      res.status(500).json({ message: "Erro ao criar motorista" });
+    }
+  });
+
+  app.patch("/api/drivers/:id", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const driver = await storage.updateDriver(id, req.body);
+      if (!driver) {
+        return res.status(404).json({ message: "Motorista não encontrado" });
+      }
+      res.json(driver);
+    } catch (error: any) {
+      console.error("Error updating driver:", error);
+      res.status(500).json({ message: "Erro ao atualizar motorista" });
+    }
+  });
+
+  app.delete("/api/drivers/:id", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteDriver(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Motorista não encontrado" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting driver:", error);
+      res.status(500).json({ message: "Erro ao excluir motorista" });
+    }
+  });
+
+  // Fleet Health routes
+  app.get("/api/fleet-health", authMiddleware as any, async (_req: Request, res: Response) => {
+    try {
+      const summary = await getFleetHealthSummary();
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching fleet health:", error);
+      res.status(500).json({ message: "Erro ao buscar saúde da frota" });
+    }
+  });
+
+  app.get("/api/fleet-health/:truckId/diagnostic", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const { truckId } = req.params;
+      const diagnostic = await generateTruckDiagnostic(truckId);
+      if (!diagnostic) {
+        return res.status(404).json({ message: "Caminhão não encontrado" });
+      }
+      res.json(diagnostic);
+    } catch (error) {
+      console.error("Error generating diagnostic:", error);
+      res.status(500).json({ message: "Erro ao gerar diagnóstico" });
+    }
+  });
+
+  // Trucks routes
   app.get("/api/trucks", authMiddleware as any, async (_req: Request, res: Response) => {
     try {
-      const trucks = await storage.getTrucks();
-      res.json(trucks);
+      const trucksList = await storage.getTrucksWithDrivers();
+      res.json(trucksList);
     } catch (error) {
       console.error("Error fetching trucks:", error);
       res.status(500).json({ message: "Erro ao buscar caminhões" });
