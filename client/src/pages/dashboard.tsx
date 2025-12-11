@@ -265,7 +265,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {user?.role === "admin" && dashboardData.truckCount === 0 && (
+          {user?.role === "admin" && (
             <Button
               onClick={() => seedMutation.mutate()}
               disabled={seedMutation.isPending}

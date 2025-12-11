@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
@@ -14,6 +15,11 @@ import {
   insertFuelExpenseSchema,
   insertExtraExpenseSchema,
   loginSchema,
+  trucks,
+  mileageRecords,
+  maintenances,
+  fuelExpenses,
+  extraExpenses,
 } from "@shared/schema";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "truckflow-secret-key-2024";
@@ -671,11 +677,12 @@ export async function registerRoutes(
       const userId = req.user!.id;
       
       const existingTrucks = await storage.getTrucks();
-      if (existingTrucks.length >= 5) {
-        return res.status(400).json({ 
-          message: "Já existem dados no sistema. Limpe os dados existentes antes de popular novamente.",
-          existingData: true
-        });
+      if (existingTrucks.length > 0) {
+        await db.delete(extraExpenses);
+        await db.delete(fuelExpenses);
+        await db.delete(maintenances);
+        await db.delete(mileageRecords);
+        await db.delete(trucks);
       }
 
       const trucksData = [
