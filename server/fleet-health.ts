@@ -269,7 +269,7 @@ VIAGENS (últimos 6 meses):
 - Total de viagens: ${totalTrips}
 - Total de KM rodados: ${totalKmTrips.toLocaleString("pt-BR")} km
 - Faturamento total: R$ ${totalRevenue.toFixed(2)}
-- Rotas realizadas: ${[...new Set(data.trips.map(t => t.route))].join(", ") || "Nenhuma"}
+- Rotas realizadas: ${Array.from(new Set(data.trips.map(t => t.route))).join(", ") || "Nenhuma"}
 
 COMBUSTÍVEL (últimos 6 meses):
 - Gasto total: R$ ${totalFuelCost.toFixed(2)}
