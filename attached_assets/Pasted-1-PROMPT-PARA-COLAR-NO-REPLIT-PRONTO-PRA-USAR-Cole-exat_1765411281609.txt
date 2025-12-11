@@ -1,0 +1,189 @@
+1. PROMPT PARA COLAR NO REPLIT (PRONTO PRA USAR)
+
+Cole exatamente assim no Replit Agent:
+
+PROMPT PARA GERAR O SISTEMA COMPLETO
+
+Desenvolva um sistema web completo de gestão de frota focado em caminhões.
+O sistema deve ser moderno, responsivo, rápido e extremamente fácil de usar.
+
+TECNOLOGIAS
+
+Backend: Node.js + Express
+
+Frontend: React + TailwindCSS
+
+Banco de dados: PostgreSQL (Neon)
+
+ORM: Drizzle
+
+Autenticação: JWT
+
+Deploy: Replit padrão
+
+NOME DO SISTEMA:
+
+TruckFlow – Gestão de Frota
+
+FUNCIONALIDADES OBRIGATÓRIAS
+1. Cadastro de Caminhões
+
+Campos necessários:
+
+Número do caminhão
+
+Placa
+
+Modelo
+
+Ano
+
+KMs totais
+
+Status (ativo / manutenção)
+
+2. Registro de KM Rodado
+
+Selecionar caminhão
+
+Inserir km inicial e km final
+
+Data do percurso
+
+Valor recebido pelo serviço
+
+Cidade/rota (campo texto)
+
+O sistema deve automaticamente calcular:
+
+Quilometragem percorrida
+
+Valor por KM
+
+Faturamento bruto do percurso
+
+3. Controle de Manutenções
+
+Campos:
+
+Caminhão
+
+Tipo de manutenção
+
+Valor gasto
+
+Data
+
+Observações
+
+Envio de comprovante (upload)
+
+O sistema deve:
+
+Diminuir automaticamente esse valor do faturamento líquido do caminhão
+
+Exibir gráfico mensal de gastos x faturamento
+
+4. Faturamento Completo
+
+Para cada caminhão:
+
+Faturamento bruto
+
+Total de manutenções (gastos)
+
+Faturamento líquido
+
+Média por km
+
+Histórico de quilômetros rodados
+
+Também gerar:
+
+Dashboard geral (somando os 4 caminhões)
+
+Ranking de caminhões mais lucrativos
+
+5. Relatórios
+
+Gerar relatórios em:
+
+PDF
+
+Excel
+
+CSV
+
+Filtros:
+
+Intervalo de datas
+
+Por caminhão
+
+Por rota
+
+Por mês
+
+6. Dashboard Moderno
+
+Criar um dashboard inicial com:
+
+Cards de faturamento bruto / líquido
+
+Total de km rodados
+
+Total de gastos com manutenção
+
+Gráfico mensal (linha)
+
+Gráfico de comparação entre os 4 caminhões (barras)
+
+7. Design
+
+Layout claro e profissional:
+
+Cor primária: #0D6EFD
+
+Cor secundária: #0B3A78
+
+Cor de fundo clara
+
+Estilo minimalista
+
+Ícones no padrão HeroIcons
+
+Componentes do dashboard grandes e com boa leitura
+
+Sidebar fixa à esquerda
+
+8. Multiusuário
+
+Criar login e senha:
+
+Admin (pode ver tudo)
+
+Usuário normal (só pode registrar km e manutenção)
+
+9. Estrutura do Código
+
+Criar pastas seguindo:
+
+/backend
+/frontend
+/database
+
+
+Gerar tudo pronto para rodar sem erros.
+
+IMPORTANTE:
+→ Gere todos os endpoints do backend
+→ Gere todas as telas React (dashboard, caminhões, km, manutenções, relatórios, login)
+→ Gere toda integração do front com o backend
+→ Crie migrações do Drizzle
+→ Crie docs de API automaticamente
+→ Entregar sistema funcionando ponta a ponta
+
+Esse é o prompt.
+Cole no Replit e deixa ele trabalhar.
+
+✅ 2. TEXTO BONITO P
