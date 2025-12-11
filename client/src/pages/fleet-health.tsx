@@ -173,8 +173,7 @@ function DiagnosticView({
   const { data: diagnostic, isLoading, error } = useQuery<FleetHealthDiagnostic>({
     queryKey: ["/api/fleet-health", truckId, "diagnostic"],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/fleet-health/${truckId}/diagnostic`);
-      return response.json();
+      return await apiRequest<FleetHealthDiagnostic>("GET", `/api/fleet-health/${truckId}/diagnostic`);
     },
   });
 
