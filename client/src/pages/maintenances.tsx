@@ -3,14 +3,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Truck, Maintenance } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -33,12 +33,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Wrench, Loader2, CalendarIcon, Upload, FileText, ExternalLink, Sparkles, Truck as TruckIcon, DollarSign, Settings } from "lucide-react";
+import { Plus, Wrench, Loader2, CalendarIcon, Upload, FileText, ExternalLink, Filter, Sparkles, DollarSign, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const maintenanceTypes = [
@@ -371,7 +379,7 @@ function MaintenanceFormDialog({
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex justify-between">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
@@ -379,31 +387,32 @@ function LoadingSkeleton() {
         </div>
         <Skeleton className="h-10 w-40" />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Skeleton key={i} className="h-40 rounded-2xl" />
-        ))}
-      </div>
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <Skeleton className="h-96 w-full rounded-xl" />
     </div>
   );
 }
 
-function getTypeConfig(type: string) {
-  const configs: Record<string, { color: string; icon: typeof Wrench }> = {
-    "Troca de óleo": { color: "from-yellow-500 to-amber-600", icon: Settings },
-    "Troca de pneus": { color: "from-blue-500 to-indigo-600", icon: Settings },
-    "Revisão de freios": { color: "from-red-500 to-rose-600", icon: Settings },
-    "Manutenção preventiva": { color: "from-green-500 to-emerald-600", icon: Wrench },
-    "Troca de filtros": { color: "from-cyan-500 to-teal-600", icon: Settings },
-    "Alinhamento e balanceamento": { color: "from-purple-500 to-violet-600", icon: Settings },
-    "Revisão elétrica": { color: "from-orange-500 to-amber-600", icon: Settings },
-    "Troca de embreagem": { color: "from-pink-500 to-rose-600", icon: Settings },
+function getTypeBadgeColor(type: string) {
+  const colors: Record<string, string> = {
+    "Troca de óleo": "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
+    "Troca de pneus": "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+    "Revisão de freios": "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
+    "Manutenção preventiva": "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
+    "Troca de filtros": "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20",
+    "Alinhamento e balanceamento": "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
+    "Revisão elétrica": "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20",
+    "Troca de embreagem": "bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20",
   };
-  return configs[type] || { color: "from-slate-500 to-slate-600", icon: Wrench };
+  return colors[type] || "bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20";
 }
 
 export default function MaintenancesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(endOfMonth(new Date()));
+  const [selectedTruck, setSelectedTruck] = useState<string>("all");
+  const [selectedType, setSelectedType] = useState<string>("all");
 
   const { data: maintenances, isLoading: maintenancesLoading } = useQuery<MaintenanceWithTruck[]>({
     queryKey: ["/api/maintenances"],
@@ -424,10 +433,27 @@ export default function MaintenancesPage() {
     }).format(Number(value));
   };
 
-  const totalCost = maintenances?.reduce((sum, m) => sum + Number(m.value), 0) || 0;
+  const filteredMaintenances = maintenances?.filter((maintenance) => {
+    const maintenanceDate = new Date(maintenance.date);
+    const matchesDateRange = (!startDate || maintenanceDate >= startDate) && (!endDate || maintenanceDate <= endDate);
+    const matchesTruck = selectedTruck === "all" || maintenance.truckId === selectedTruck;
+    const matchesType = selectedType === "all" || maintenance.type === selectedType;
+    return matchesDateRange && matchesTruck && matchesType;
+  }) || [];
+
+  const totalCost = filteredMaintenances.reduce((sum, m) => sum + Number(m.value), 0);
+
+  const clearFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setSelectedTruck("all");
+    setSelectedType("all");
+  };
+
+  const hasActiveFilters = startDate || endDate || selectedTruck !== "all" || selectedType !== "all";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -439,108 +465,212 @@ export default function MaintenancesPage() {
             Controle os gastos com manutenção da frota
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20">
-            <DollarSign className="h-4 w-4 text-red-600" />
-            <span className="text-sm font-medium text-red-700 dark:text-red-400">
-              Total: {formatCurrency(totalCost)}
-            </span>
-          </div>
-          <Button onClick={() => setDialogOpen(true)} className="shadow-lg" data-testid="button-add-maintenance">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Manutenção
-          </Button>
-        </div>
+        <Button onClick={() => setDialogOpen(true)} className="shadow-lg" data-testid="button-add-maintenance">
+          <Plus className="mr-2 h-4 w-4" />
+          Nova Manutenção
+        </Button>
       </div>
 
-      {maintenances && maintenances.length > 0 ? (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {maintenances.map((maintenance) => {
-            const typeConfig = getTypeConfig(maintenance.type);
-            const TypeIcon = typeConfig.icon;
-            return (
-              <Card 
-                key={maintenance.id}
-                className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                data-testid={`row-maintenance-${maintenance.id}`}
-              >
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${typeConfig.color}`} />
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${typeConfig.color} shadow-lg`}>
-                      <TypeIcon className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-red-600">
-                        -{formatCurrency(maintenance.value)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(maintenance.date), "dd/MM/yyyy", { locale: ptBR })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Badge variant="outline" className="bg-muted/50">
-                      {maintenance.type}
-                    </Badge>
-                    
-                    <div className="flex items-center gap-2 text-sm">
-                      <TruckIcon className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">Caminhão {maintenance.truck?.number || "-"}</span>
-                      <span className="text-muted-foreground">({maintenance.truck?.plate})</span>
-                    </div>
-
-                    {maintenance.observations && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {maintenance.observations}
-                      </p>
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Filter className="h-4 w-4" />
+            Filtros
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto h-8">
+                <X className="h-4 w-4 mr-1" />
+                Limpar
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data Inicial</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full h-10 justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
                     )}
-                  </div>
-
-                  {maintenance.receiptUrl && (
-                    <div className="mt-4 pt-4 border-t border-border/50">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        asChild
-                      >
-                        <a
-                          href={maintenance.receiptUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          data-testid={`link-receipt-${maintenance.id}`}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Ver Comprovante
-                          <ExternalLink className="h-3 w-3 ml-auto" />
-                        </a>
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        <Card className="border-0 shadow-lg">
-          <CardContent className="text-center py-16">
-            <div className="flex h-20 w-20 mx-auto mb-6 items-center justify-center rounded-2xl bg-muted/50">
-              <Wrench className="h-10 w-10 text-muted-foreground/50" />
+                    data-testid="filter-start-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Nenhuma manutenção registrada</h3>
-            <p className="text-muted-foreground max-w-sm mx-auto">
-              Registre a primeira manutenção da sua frota para controlar os custos
-            </p>
-            <Button className="mt-6 shadow-lg" onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Manutenção
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data Final</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full h-10 justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                    data-testid="filter-end-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Caminhão</label>
+              <Select value={selectedTruck} onValueChange={setSelectedTruck}>
+                <SelectTrigger className="h-10" data-testid="filter-truck">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os caminhões</SelectItem>
+                  {trucks?.map((truck) => (
+                    <SelectItem key={truck.id} value={truck.id}>
+                      Caminhão {truck.number} - {truck.plate}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tipo</label>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="h-10" data-testid="filter-type">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  {maintenanceTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Total do Período</label>
+              <div className="flex items-center gap-2 h-10 px-3 rounded-md bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20">
+                <DollarSign className="h-4 w-4 text-red-600" />
+                <span className="text-sm font-bold text-red-700 dark:text-red-400">
+                  {formatCurrency(totalCost)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-0">
+          {filteredMaintenances.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Caminhão</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Observações</TableHead>
+                  <TableHead className="text-center">Comprovante</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMaintenances.map((maintenance) => (
+                  <TableRow key={maintenance.id} data-testid={`row-maintenance-${maintenance.id}`}>
+                    <TableCell>
+                      {format(new Date(maintenance.date), "dd/MM/yyyy", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">Caminhão {maintenance.truck?.number || "-"}</p>
+                        <p className="text-xs text-muted-foreground">{maintenance.truck?.plate}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getTypeBadgeColor(maintenance.type)}>
+                        {maintenance.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-red-600">
+                      -{formatCurrency(maintenance.value)}
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <span className="truncate block text-muted-foreground">
+                        {maintenance.observations || "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {maintenance.receiptUrl ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                        >
+                          <a
+                            href={maintenance.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid={`link-receipt-${maintenance.id}`}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-16">
+              <div className="flex h-16 w-16 mx-auto mb-4 items-center justify-center rounded-2xl bg-muted/50">
+                <Wrench className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-lg font-semibold mb-1">Nenhuma manutenção encontrada</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto">
+                {hasActiveFilters
+                  ? "Tente ajustar os filtros para encontrar registros"
+                  : "Registre a primeira manutenção da sua frota"}
+              </p>
+              {!hasActiveFilters && (
+                <Button className="mt-4" onClick={() => setDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nova Manutenção
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <MaintenanceFormDialog
         open={dialogOpen}

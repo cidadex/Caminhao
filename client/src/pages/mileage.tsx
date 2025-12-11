@@ -3,13 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Truck, MileageRecord } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -32,11 +32,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Route, Loader2, CalendarIcon, MapPin, Truck as TruckIcon, Sparkles, DollarSign, Gauge, ArrowRight } from "lucide-react";
+import { Plus, Route, Loader2, CalendarIcon, Filter, Sparkles, DollarSign, Gauge, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mileageFormSchema = z.object({
@@ -308,7 +316,7 @@ function MileageFormDialog({
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex justify-between">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
@@ -316,17 +324,17 @@ function LoadingSkeleton() {
         </div>
         <Skeleton className="h-10 w-36" />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Skeleton key={i} className="h-48 rounded-2xl" />
-        ))}
-      </div>
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <Skeleton className="h-96 w-full rounded-xl" />
     </div>
   );
 }
 
 export default function MileagePage() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(endOfMonth(new Date()));
+  const [selectedTruck, setSelectedTruck] = useState<string>("all");
 
   const { data: records, isLoading: recordsLoading } = useQuery<MileageRecordWithTruck[]>({
     queryKey: ["/api/mileage"],
@@ -351,11 +359,26 @@ export default function MileagePage() {
     return new Intl.NumberFormat("pt-BR").format(Number(value));
   };
 
-  const totalRevenue = records?.reduce((sum, r) => sum + Number(r.valueReceived), 0) || 0;
-  const totalKm = records?.reduce((sum, r) => sum + Number(r.kmTraveled), 0) || 0;
+  const filteredRecords = records?.filter((record) => {
+    const recordDate = new Date(record.date);
+    const matchesDateRange = (!startDate || recordDate >= startDate) && (!endDate || recordDate <= endDate);
+    const matchesTruck = selectedTruck === "all" || record.truckId === selectedTruck;
+    return matchesDateRange && matchesTruck;
+  }) || [];
+
+  const totalRevenue = filteredRecords.reduce((sum, r) => sum + Number(r.valueReceived), 0);
+  const totalKm = filteredRecords.reduce((sum, r) => sum + Number(r.kmTraveled), 0);
+
+  const clearFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setSelectedTruck("all");
+  };
+
+  const hasActiveFilters = startDate || endDate || selectedTruck !== "all";
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -367,95 +390,187 @@ export default function MileagePage() {
             Registre os quilômetros percorridos e valores recebidos
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-4 px-4 py-2 rounded-xl bg-muted/50 border border-border/50">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-emerald-600" />
-              <span className="text-sm font-medium">{formatCurrency(totalRevenue)}</span>
-            </div>
-            <div className="w-px h-4 bg-border" />
-            <div className="flex items-center gap-2">
-              <Gauge className="h-4 w-4 text-violet-600" />
-              <span className="text-sm font-medium">{formatNumber(totalKm)} km</span>
-            </div>
-          </div>
-          <Button onClick={() => setDialogOpen(true)} className="shadow-lg" data-testid="button-add-mileage">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Registro
-          </Button>
-        </div>
+        <Button onClick={() => setDialogOpen(true)} className="shadow-lg" data-testid="button-add-mileage">
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Registro
+        </Button>
       </div>
 
-      {records && records.length > 0 ? (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {records.map((record) => (
-            <Card 
-              key={record.id}
-              className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              data-testid={`row-mileage-${record.id}`}
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600" />
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
-                    <Route className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-emerald-600">
-                      {formatCurrency(record.valueReceived)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(record.date), "dd/MM/yyyy", { locale: ptBR })}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <TruckIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">Caminhão {record.truck?.number || "-"}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{record.route}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">{formatNumber(record.kmInitial)}</span>
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{formatNumber(record.kmFinal)}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-semibold">{formatNumber(record.kmTraveled)} km</span>
-                      <span className="text-xs text-muted-foreground ml-1">
-                        ({formatCurrency(Number(record.valuePerKm))}/km)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card className="border-0 shadow-lg">
-          <CardContent className="text-center py-16">
-            <div className="flex h-20 w-20 mx-auto mb-6 items-center justify-center rounded-2xl bg-muted/50">
-              <Route className="h-10 w-10 text-muted-foreground/50" />
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Filter className="h-4 w-4" />
+            Filtros
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto h-8">
+                <X className="h-4 w-4 mr-1" />
+                Limpar
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data Inicial</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full h-10 justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                    data-testid="filter-start-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Nenhum registro de KM</h3>
-            <p className="text-muted-foreground max-w-sm mx-auto">
-              Adicione seu primeiro registro de quilometragem para começar a rastrear suas viagens
-            </p>
-            <Button className="mt-6 shadow-lg" onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Registro
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data Final</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full h-10 justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                    data-testid="filter-end-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Caminhão</label>
+              <Select value={selectedTruck} onValueChange={setSelectedTruck}>
+                <SelectTrigger className="h-10" data-testid="filter-truck">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os caminhões</SelectItem>
+                  {trucks?.map((truck) => (
+                    <SelectItem key={truck.id} value={truck.id}>
+                      Caminhão {truck.number} - {truck.plate}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Resumo do Período</label>
+              <div className="flex items-center gap-3 h-10 px-3 rounded-md bg-muted/50 border">
+                <div className="flex items-center gap-1.5">
+                  <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-sm font-medium">{formatCurrency(totalRevenue)}</span>
+                </div>
+                <div className="w-px h-4 bg-border" />
+                <div className="flex items-center gap-1.5">
+                  <Gauge className="h-3.5 w-3.5 text-violet-600" />
+                  <span className="text-sm font-medium">{formatNumber(totalKm)} km</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-0">
+          {filteredRecords.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Caminhão</TableHead>
+                  <TableHead>Rota</TableHead>
+                  <TableHead className="text-right">KM Inicial</TableHead>
+                  <TableHead className="text-right">KM Final</TableHead>
+                  <TableHead className="text-right">KM Percorrido</TableHead>
+                  <TableHead className="text-right">Valor Recebido</TableHead>
+                  <TableHead className="text-right">R$/KM</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRecords.map((record) => (
+                  <TableRow key={record.id} data-testid={`row-mileage-${record.id}`}>
+                    <TableCell>
+                      {format(new Date(record.date), "dd/MM/yyyy", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">Caminhão {record.truck?.number || "-"}</p>
+                        <p className="text-xs text-muted-foreground">{record.truck?.plate}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <span className="truncate block">{record.route}</span>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatNumber(record.kmInitial)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatNumber(record.kmFinal)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatNumber(record.kmTraveled)} km
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-emerald-600">
+                      {formatCurrency(record.valueReceived)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(record.valuePerKm)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-16">
+              <div className="flex h-16 w-16 mx-auto mb-4 items-center justify-center rounded-2xl bg-muted/50">
+                <Route className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-lg font-semibold mb-1">Nenhum registro encontrado</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto">
+                {hasActiveFilters
+                  ? "Tente ajustar os filtros para encontrar registros"
+                  : "Adicione seu primeiro registro de quilometragem"}
+              </p>
+              {!hasActiveFilters && (
+                <Button className="mt-4" onClick={() => setDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Registro
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <MileageFormDialog
         open={dialogOpen}
