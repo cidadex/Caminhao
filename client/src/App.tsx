@@ -16,6 +16,10 @@ import MaintenancesPage from "@/pages/maintenances";
 import FuelPage from "@/pages/fuel";
 import ExtraExpensesPage from "@/pages/extra-expenses";
 import ReportsPage from "@/pages/reports";
+import MaintenanceReportPage from "@/pages/report-maintenance";
+import FuelReportPage from "@/pages/report-fuel";
+import ExtrasReportPage from "@/pages/report-extras";
+import MileageReportPage from "@/pages/report-mileage";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: () => JSX.Element; adminOnly?: boolean }) {
@@ -127,6 +131,26 @@ function Router() {
       <Route path="/relatorios">
         <AuthenticatedLayout>
           <ProtectedRoute component={ReportsPage} adminOnly />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/relatorios/manutencao">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={MaintenanceReportPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/relatorios/combustivel">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={FuelReportPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/relatorios/gastos-extras">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={ExtrasReportPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/relatorios/quilometragem">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={MileageReportPage} />
         </AuthenticatedLayout>
       </Route>
       <Route>

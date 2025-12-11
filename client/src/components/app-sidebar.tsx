@@ -57,11 +57,34 @@ const menuItems = [
     url: "/gastos-extras",
     icon: Receipt,
   },
+];
+
+const reportItems = [
   {
-    title: "Relatórios",
+    title: "Relatório Geral",
     url: "/relatorios",
     icon: FileText,
     adminOnly: true,
+  },
+  {
+    title: "Manutenção",
+    url: "/relatorios/manutencao",
+    icon: Wrench,
+  },
+  {
+    title: "Combustível",
+    url: "/relatorios/combustivel",
+    icon: Fuel,
+  },
+  {
+    title: "Gastos Extras",
+    url: "/relatorios/gastos-extras",
+    icon: Receipt,
+  },
+  {
+    title: "Quilometragem",
+    url: "/relatorios/quilometragem",
+    icon: Route,
   },
 ];
 
@@ -69,7 +92,7 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout, isAdmin } = useAuth();
 
-  const filteredItems = menuItems.filter(
+  const filteredReportItems = reportItems.filter(
     (item) => !item.adminOnly || isAdmin
   );
 
@@ -103,7 +126,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredItems.map((item) => {
+              {menuItems.map((item) => {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -112,6 +135,32 @@ export function AppSidebar() {
                       className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
                     >
                       <Link href={item.url} data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground px-4">
+            Relatórios
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {filteredReportItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
+                    >
+                      <Link href={item.url} data-testid={`nav-report-${item.url.replace("/relatorios/", "").replace("/relatorios", "geral")}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>

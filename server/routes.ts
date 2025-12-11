@@ -465,5 +465,206 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/reports/maintenance", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate, truckId } = req.query;
+      const allMaintenances = await storage.getMaintenances();
+      
+      let filtered = allMaintenances;
+      if (startDate) {
+        filtered = filtered.filter(m => new Date(m.date) >= new Date(startDate as string));
+      }
+      if (endDate) {
+        filtered = filtered.filter(m => new Date(m.date) <= new Date(endDate as string));
+      }
+      if (truckId && truckId !== "all") {
+        filtered = filtered.filter(m => m.truckId === truckId);
+      }
+
+      const totalValue = filtered.reduce((sum, m) => sum + Number(m.value), 0);
+      const typeBreakdown = filtered.reduce((acc, m) => {
+        acc[m.type] = (acc[m.type] || 0) + Number(m.value);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const truckBreakdown = filtered.reduce((acc, m) => {
+        const key = m.truck?.number || "Sem Caminhão";
+        acc[key] = (acc[key] || 0) + Number(m.value);
+        return acc;
+      }, {} as Record<string, number>);
+
+      res.json({
+        records: filtered,
+        totals: {
+          count: filtered.length,
+          totalValue,
+          avgValue: filtered.length > 0 ? totalValue / filtered.length : 0,
+        },
+        byType: Object.entries(typeBreakdown).map(([type, value]) => ({ type, value })),
+        byTruck: Object.entries(truckBreakdown).map(([truck, value]) => ({ truck, value })),
+      });
+    } catch (error) {
+      console.error("Error fetching maintenance report:", error);
+      res.status(500).json({ message: "Erro ao buscar relatório de manutenção" });
+    }
+  });
+
+  app.get("/api/reports/fuel", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate, truckId } = req.query;
+      const allFuel = await storage.getFuelExpenses();
+      
+      let filtered = allFuel;
+      if (startDate) {
+        filtered = filtered.filter(f => new Date(f.date) >= new Date(startDate as string));
+      }
+      if (endDate) {
+        filtered = filtered.filter(f => new Date(f.date) <= new Date(endDate as string));
+      }
+      if (truckId && truckId !== "all") {
+        filtered = filtered.filter(f => f.truckId === truckId);
+      }
+
+      const totalCost = filtered.reduce((sum, f) => sum + Number(f.totalCost), 0);
+      const totalLiters = filtered.reduce((sum, f) => sum + Number(f.liters), 0);
+      const avgPricePerLiter = filtered.length > 0 ? totalCost / totalLiters : 0;
+
+      const vendorBreakdown = filtered.reduce((acc, f) => {
+        const key = f.vendor || "Não informado";
+        if (!acc[key]) acc[key] = { cost: 0, liters: 0 };
+        acc[key].cost += Number(f.totalCost);
+        acc[key].liters += Number(f.liters);
+        return acc;
+      }, {} as Record<string, { cost: number; liters: number }>);
+
+      const truckBreakdown = filtered.reduce((acc, f) => {
+        const key = f.truck?.number || "Sem Caminhão";
+        if (!acc[key]) acc[key] = { cost: 0, liters: 0 };
+        acc[key].cost += Number(f.totalCost);
+        acc[key].liters += Number(f.liters);
+        return acc;
+      }, {} as Record<string, { cost: number; liters: number }>);
+
+      res.json({
+        records: filtered,
+        totals: {
+          count: filtered.length,
+          totalCost,
+          totalLiters,
+          avgPricePerLiter,
+        },
+        byVendor: Object.entries(vendorBreakdown).map(([vendor, data]) => ({ vendor, ...data })),
+        byTruck: Object.entries(truckBreakdown).map(([truck, data]) => ({ truck, ...data })),
+      });
+    } catch (error) {
+      console.error("Error fetching fuel report:", error);
+      res.status(500).json({ message: "Erro ao buscar relatório de combustível" });
+    }
+  });
+
+  app.get("/api/reports/extras", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate, truckId } = req.query;
+      const allExtras = await storage.getExtraExpenses();
+      
+      let filtered = allExtras;
+      if (startDate) {
+        filtered = filtered.filter(e => new Date(e.date) >= new Date(startDate as string));
+      }
+      if (endDate) {
+        filtered = filtered.filter(e => new Date(e.date) <= new Date(endDate as string));
+      }
+      if (truckId && truckId !== "all") {
+        if (truckId === "none") {
+          filtered = filtered.filter(e => !e.truckId);
+        } else {
+          filtered = filtered.filter(e => e.truckId === truckId);
+        }
+      }
+
+      const totalCost = filtered.reduce((sum, e) => sum + Number(e.totalCost), 0);
+
+      const categoryBreakdown = filtered.reduce((acc, e) => {
+        acc[e.category] = (acc[e.category] || 0) + Number(e.totalCost);
+        return acc;
+      }, {} as Record<string, number>);
+
+      const truckBreakdown = filtered.reduce((acc, e) => {
+        const key = e.truck?.number || "Geral";
+        acc[key] = (acc[key] || 0) + Number(e.totalCost);
+        return acc;
+      }, {} as Record<string, number>);
+
+      res.json({
+        records: filtered,
+        totals: {
+          count: filtered.length,
+          totalCost,
+          avgCost: filtered.length > 0 ? totalCost / filtered.length : 0,
+        },
+        byCategory: Object.entries(categoryBreakdown).map(([category, value]) => ({ category, value })),
+        byTruck: Object.entries(truckBreakdown).map(([truck, value]) => ({ truck, value })),
+      });
+    } catch (error) {
+      console.error("Error fetching extras report:", error);
+      res.status(500).json({ message: "Erro ao buscar relatório de gastos extras" });
+    }
+  });
+
+  app.get("/api/reports/mileage", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate, truckId } = req.query;
+      const allMileage = await storage.getMileageRecords();
+      
+      let filtered = allMileage;
+      if (startDate) {
+        filtered = filtered.filter(m => new Date(m.date) >= new Date(startDate as string));
+      }
+      if (endDate) {
+        filtered = filtered.filter(m => new Date(m.date) <= new Date(endDate as string));
+      }
+      if (truckId && truckId !== "all") {
+        filtered = filtered.filter(m => m.truckId === truckId);
+      }
+
+      const totalKm = filtered.reduce((sum, m) => sum + Number(m.kmTraveled), 0);
+      const totalRevenue = filtered.reduce((sum, m) => sum + Number(m.valueReceived), 0);
+      const avgValuePerKm = totalKm > 0 ? totalRevenue / totalKm : 0;
+
+      const routeBreakdown = filtered.reduce((acc, m) => {
+        if (!acc[m.route]) acc[m.route] = { count: 0, km: 0, revenue: 0 };
+        acc[m.route].count++;
+        acc[m.route].km += Number(m.kmTraveled);
+        acc[m.route].revenue += Number(m.valueReceived);
+        return acc;
+      }, {} as Record<string, { count: number; km: number; revenue: number }>);
+
+      const truckBreakdown = filtered.reduce((acc, m) => {
+        const key = m.truck?.number || "Sem Caminhão";
+        if (!acc[key]) acc[key] = { trips: 0, km: 0, revenue: 0 };
+        acc[key].trips++;
+        acc[key].km += Number(m.kmTraveled);
+        acc[key].revenue += Number(m.valueReceived);
+        return acc;
+      }, {} as Record<string, { trips: number; km: number; revenue: number }>);
+
+      res.json({
+        records: filtered,
+        totals: {
+          tripCount: filtered.length,
+          totalKm,
+          totalRevenue,
+          avgValuePerKm,
+          avgTripDistance: filtered.length > 0 ? totalKm / filtered.length : 0,
+        },
+        byRoute: Object.entries(routeBreakdown).map(([route, data]) => ({ route, ...data })),
+        byTruck: Object.entries(truckBreakdown).map(([truck, data]) => ({ truck, ...data })),
+      });
+    } catch (error) {
+      console.error("Error fetching mileage report:", error);
+      res.status(500).json({ message: "Erro ao buscar relatório de quilometragem" });
+    }
+  });
+
   return httpServer;
 }
