@@ -107,8 +107,8 @@ function StatCard({
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
           </div>
-          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${gradient} shadow-lg`}>
-            <Icon className="h-6 w-6 text-white" />
+          <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} shadow-lg`}>
+            <Icon className="h-5 w-5 text-white" />
           </div>
         </div>
       </CardContent>
