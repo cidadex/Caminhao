@@ -34,6 +34,10 @@ import {
   TrendingUp,
   TrendingDown,
   Truck as TruckIcon,
+  Fuel,
+  Receipt,
+  Wallet,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,11 +50,16 @@ interface ReportData {
   };
   grossRevenue: number;
   maintenanceCost: number;
+  fuelCost: number;
+  extraCost: number;
+  totalCost: number;
   netRevenue: number;
   totalKm: number;
   avgValuePerKm: number;
   tripCount: number;
   maintenanceCount: number;
+  fuelCount: number;
+  extraCount: number;
 }
 
 interface ReportResponse {
@@ -58,6 +67,9 @@ interface ReportResponse {
   totals: {
     grossRevenue: number;
     maintenanceCost: number;
+    fuelCost: number;
+    extraCost: number;
+    totalCost: number;
     netRevenue: number;
     totalKm: number;
   };
@@ -203,11 +215,15 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-reports-title">Relatórios</h1>
-        <p className="text-muted-foreground">Analise o desempenho da sua frota</p>
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <span className="text-sm font-medium text-primary">Análise</span>
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight" data-testid="text-reports-title">Relatórios</h1>
+        <p className="text-muted-foreground mt-1">Analise o desempenho completo da sua frota</p>
       </div>
 
-      <Card>
+      <Card className="border-0 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Filter className="h-4 w-4" />
@@ -339,63 +355,107 @@ export default function ReportsPage() {
       </Card>
 
       {reportData?.totals && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-green-500/10">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                    <TrendingUp className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Faturamento Bruto</p>
+                    <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400" data-testid="stat-gross-revenue">
+                      {formatCurrency(reportData.totals.grossRevenue)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Faturamento Bruto</p>
-                  <p className="text-xl font-bold">{formatCurrency(reportData.totals.grossRevenue)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-rose-500/5 to-pink-500/5">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg">
+                    <Wallet className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Custo Operacional Total</p>
+                    <p className="text-2xl font-bold text-rose-700 dark:text-rose-400" data-testid="stat-total-cost">
+                      {formatCurrency(reportData.totals.totalCost)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/5 to-indigo-500/5">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
+                    <TrendingUp className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Faturamento Líquido</p>
+                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-400" data-testid="stat-net-revenue">
+                      {formatCurrency(reportData.totals.netRevenue)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Breakdown de Custos</CardTitle>
+              <CardDescription>
+                Fórmula: Bruto - Manutenção - Combustível - Extras = Líquido
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingDown className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-muted-foreground">Manutenção</span>
+                  </div>
+                  <p className="text-xl font-bold text-orange-700 dark:text-orange-400">
+                    {formatCurrency(reportData.totals.maintenanceCost)}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Fuel className="h-4 w-4 text-cyan-600" />
+                    <span className="text-sm font-medium text-muted-foreground">Combustível</span>
+                  </div>
+                  <p className="text-xl font-bold text-cyan-700 dark:text-cyan-400">
+                    {formatCurrency(reportData.totals.fuelCost)}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Receipt className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-medium text-muted-foreground">Gastos Extras</span>
+                  </div>
+                  <p className="text-xl font-bold text-amber-700 dark:text-amber-400">
+                    {formatCurrency(reportData.totals.extraCost)}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TruckIcon className="h-4 w-4 text-violet-600" />
+                    <span className="text-sm font-medium text-muted-foreground">Total KM</span>
+                  </div>
+                  <p className="text-xl font-bold text-violet-700 dark:text-violet-400">
+                    {formatNumber(reportData.totals.totalKm)} km
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-red-500/10">
-                  <TrendingDown className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Gastos Manutenção</p>
-                  <p className="text-xl font-bold">{formatCurrency(reportData.totals.maintenanceCost)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Faturamento Líquido</p>
-                  <p className="text-xl font-bold">{formatCurrency(reportData.totals.netRevenue)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-500/10">
-                  <TruckIcon className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total KM</p>
-                  <p className="text-xl font-bold">{formatNumber(reportData.totals.totalKm)} km</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        </>
       )}
 
-      <Card>
+      <Card className="border-0 shadow-lg">
         <CardHeader>
           <CardTitle>Detalhamento por Caminhão</CardTitle>
           <CardDescription>
@@ -411,45 +471,59 @@ export default function ReportsPage() {
               <p className="mt-2 text-muted-foreground">Carregando dados...</p>
             </div>
           ) : reportData?.data && reportData.data.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Caminhão</TableHead>
-                  <TableHead className="text-right">Viagens</TableHead>
-                  <TableHead className="text-right">KM Total</TableHead>
-                  <TableHead className="text-right">Faturamento Bruto</TableHead>
-                  <TableHead className="text-right">Manutenções</TableHead>
-                  <TableHead className="text-right">Faturamento Líquido</TableHead>
-                  <TableHead className="text-right">Média R$/KM</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reportData.data.map((row) => (
-                  <TableRow key={row.truck.id} data-testid={`row-report-${row.truck.id}`}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">Caminhão {row.truck.number}</p>
-                        <p className="text-xs text-muted-foreground">{row.truck.plate}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">{row.tripCount}</TableCell>
-                    <TableCell className="text-right">{formatNumber(row.totalKm)} km</TableCell>
-                    <TableCell className="text-right text-green-600">
-                      {formatCurrency(row.grossRevenue)}
-                    </TableCell>
-                    <TableCell className="text-right text-red-600">
-                      -{formatCurrency(row.maintenanceCost)}
-                    </TableCell>
-                    <TableCell className="text-right font-bold">
-                      {formatCurrency(row.netRevenue)}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {formatCurrency(row.avgValuePerKm)}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Caminhão</TableHead>
+                    <TableHead className="text-right">Viagens</TableHead>
+                    <TableHead className="text-right">KM Total</TableHead>
+                    <TableHead className="text-right">Bruto</TableHead>
+                    <TableHead className="text-right">Manutenção</TableHead>
+                    <TableHead className="text-right">Combustível</TableHead>
+                    <TableHead className="text-right">Extras</TableHead>
+                    <TableHead className="text-right">Custo Total</TableHead>
+                    <TableHead className="text-right">Líquido</TableHead>
+                    <TableHead className="text-right">R$/KM</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {reportData.data.map((row) => (
+                    <TableRow key={row.truck.id} data-testid={`row-report-${row.truck.id}`}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">Caminhão {row.truck.number}</p>
+                          <p className="text-xs text-muted-foreground">{row.truck.plate}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{row.tripCount}</TableCell>
+                      <TableCell className="text-right">{formatNumber(row.totalKm)} km</TableCell>
+                      <TableCell className="text-right text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(row.grossRevenue)}
+                      </TableCell>
+                      <TableCell className="text-right text-orange-600 dark:text-orange-400">
+                        -{formatCurrency(row.maintenanceCost)}
+                      </TableCell>
+                      <TableCell className="text-right text-cyan-600 dark:text-cyan-400">
+                        -{formatCurrency(row.fuelCost)}
+                      </TableCell>
+                      <TableCell className="text-right text-amber-600 dark:text-amber-400">
+                        -{formatCurrency(row.extraCost)}
+                      </TableCell>
+                      <TableCell className="text-right text-rose-600 dark:text-rose-400 font-medium">
+                        {formatCurrency(row.totalCost)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-blue-700 dark:text-blue-400">
+                        {formatCurrency(row.netRevenue)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatCurrency(row.avgValuePerKm)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />

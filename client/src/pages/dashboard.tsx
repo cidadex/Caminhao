@@ -7,6 +7,9 @@ import {
   Area,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -14,24 +17,31 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { DollarSign, TrendingUp, TrendingDown, Truck, Wrench, Route, Trophy, ArrowUpRight, ArrowDownRight, Sparkles } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Truck, Wrench, Route, Trophy, ArrowUpRight, ArrowDownRight, Sparkles, Fuel, Receipt, Wallet } from "lucide-react";
 
 interface DashboardData {
   totalGrossRevenue: number;
   totalNetRevenue: number;
   totalKmTraveled: number;
   totalMaintenanceCost: number;
+  totalFuelCost: number;
+  totalExtraCost: number;
+  totalOperationalCost: number;
   truckCount: number;
   monthlyData: Array<{
     month: string;
     revenue: number;
     maintenance: number;
+    fuel: number;
+    extra: number;
   }>;
   truckComparison: Array<{
     truck: string;
     grossRevenue: number;
     netRevenue: number;
     maintenanceCost: number;
+    fuelCost: number;
+    extraCost: number;
   }>;
   ranking: Array<{
     id: string;
@@ -46,6 +56,9 @@ const gradients = {
   net: "from-blue-500 to-indigo-600",
   km: "from-violet-500 to-purple-600",
   maintenance: "from-orange-500 to-red-500",
+  fuel: "from-cyan-500 to-blue-500",
+  extra: "from-amber-500 to-orange-500",
+  cost: "from-rose-500 to-pink-600",
 };
 
 function StatCard({
@@ -154,6 +167,8 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat("pt-BR").format(value);
 }
 
+const COST_COLORS = ["#f97316", "#06b6d4", "#f59e0b"];
+
 export default function DashboardPage() {
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
@@ -168,6 +183,9 @@ export default function DashboardPage() {
     totalNetRevenue: 0,
     totalKmTraveled: 0,
     totalMaintenanceCost: 0,
+    totalFuelCost: 0,
+    totalExtraCost: 0,
+    totalOperationalCost: 0,
     truckCount: 0,
     monthlyData: [],
     truckComparison: [],
@@ -177,6 +195,12 @@ export default function DashboardPage() {
   const profitMargin = dashboardData.totalGrossRevenue > 0 
     ? ((dashboardData.totalNetRevenue / dashboardData.totalGrossRevenue) * 100).toFixed(1)
     : "0";
+
+  const costBreakdown = [
+    { name: "Manutenção", value: dashboardData.totalMaintenanceCost, color: "#f97316" },
+    { name: "Combustível", value: dashboardData.totalFuelCost, color: "#06b6d4" },
+    { name: "Extras", value: dashboardData.totalExtraCost, color: "#f59e0b" },
+  ].filter(item => item.value > 0);
 
   return (
     <div className="space-y-8">
@@ -214,7 +238,7 @@ export default function DashboardPage() {
           value={formatCurrency(dashboardData.totalNetRevenue)}
           icon={TrendingUp}
           gradient={gradients.net}
-          description="Após custos de manutenção"
+          description="Após todos os custos operacionais"
         />
         <StatCard
           title="Total KM Rodados"
@@ -224,12 +248,63 @@ export default function DashboardPage() {
           description="Quilometragem total"
         />
         <StatCard
-          title="Custos de Manutenção"
-          value={formatCurrency(dashboardData.totalMaintenanceCost)}
-          icon={Wrench}
-          gradient={gradients.maintenance}
-          description="Total em manutenções"
+          title="Custo Operacional"
+          value={formatCurrency(dashboardData.totalOperationalCost)}
+          icon={Wallet}
+          gradient={gradients.cost}
+          description="Manutenção + Combustível + Extras"
         />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="relative overflow-hidden border-0 shadow-lg">
+          <div className={`absolute inset-0 bg-gradient-to-br ${gradients.maintenance} opacity-[0.05]`} />
+          <CardContent className="relative p-5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Manutenção</p>
+                <p className="text-2xl font-bold" data-testid="stat-maintenance">
+                  {formatCurrency(dashboardData.totalMaintenanceCost)}
+                </p>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${gradients.maintenance}`}>
+                <Wrench className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-0 shadow-lg">
+          <div className={`absolute inset-0 bg-gradient-to-br ${gradients.fuel} opacity-[0.05]`} />
+          <CardContent className="relative p-5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Combustível</p>
+                <p className="text-2xl font-bold" data-testid="stat-fuel">
+                  {formatCurrency(dashboardData.totalFuelCost)}
+                </p>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${gradients.fuel}`}>
+                <Fuel className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-0 shadow-lg">
+          <div className={`absolute inset-0 bg-gradient-to-br ${gradients.extra} opacity-[0.05]`} />
+          <CardContent className="relative p-5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Gastos Extras</p>
+                <p className="text-2xl font-bold" data-testid="stat-extra">
+                  {formatCurrency(dashboardData.totalExtraCost)}
+                </p>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${gradients.extra}`}>
+                <Receipt className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -241,7 +316,7 @@ export default function DashboardPage() {
                   <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                     <TrendingUp className="h-4 w-4 text-white" />
                   </div>
-                  Faturamento vs Manutenção
+                  Faturamento vs Custos
                 </CardTitle>
                 <CardDescription className="mt-1">Evolução mensal dos valores</CardDescription>
               </div>
@@ -260,6 +335,10 @@ export default function DashboardPage() {
                       <linearGradient id="colorMaintenance" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorFuel" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
@@ -301,10 +380,18 @@ export default function DashboardPage() {
                     />
                     <Area
                       type="monotone"
+                      dataKey="fuel"
+                      name="Combustível"
+                      stroke="#06b6d4"
+                      strokeWidth={2}
+                      fill="url(#colorFuel)"
+                    />
+                    <Area
+                      type="monotone"
                       dataKey="maintenance"
                       name="Manutenção"
                       stroke="#f97316"
-                      strokeWidth={3}
+                      strokeWidth={2}
                       fill="url(#colorMaintenance)"
                     />
                   </AreaChart>
@@ -320,6 +407,80 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
+                    <Wallet className="h-4 w-4 text-white" />
+                  </div>
+                  Breakdown de Custos
+                </CardTitle>
+                <CardDescription className="mt-1">Distribuição dos custos operacionais</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              {costBreakdown.length > 0 ? (
+                <div className="flex items-center h-full">
+                  <div className="w-1/2">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={costBreakdown}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {costBreakdown.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "12px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="w-1/2 space-y-4">
+                    {costBreakdown.map((item, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: item.color }} />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{item.name}</p>
+                          <p className="text-lg font-bold">{formatCurrency(item.value)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {((item.value / dashboardData.totalOperationalCost) * 100).toFixed(1)}% do total
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <Wallet className="h-12 w-12 mb-3 opacity-20" />
+                  <p className="font-medium">Nenhum custo registrado</p>
+                  <p className="text-sm">Registre manutenções ou abastecimentos</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-1">
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -401,7 +562,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <CardTitle className="text-xl font-bold">Ranking de Lucratividade</CardTitle>
-              <CardDescription>Caminhões ordenados por faturamento líquido</CardDescription>
+              <CardDescription>Caminhões ordenados por faturamento líquido (após todos os custos)</CardDescription>
             </div>
           </div>
         </CardHeader>
