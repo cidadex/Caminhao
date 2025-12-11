@@ -1,0 +1,202 @@
+Perfeito, agora é hora de mandar a *braba técnica* pro Replit. 😎🚛
+
+Vou montar um prompt completinho pra você colar direto no agente do Replit, já considerando que o sistema EXISTE e a gente só vai **incluir**:
+
+* Módulo **“Saúde da Frota – Análise Inteligente”**
+* **Página de diagnósticos** (caminhão + trechos + motoristas)
+* Campo de **motorista principal** ligado ao caminhão, mostrando o nome na listagem.
+
+Você só precisa copiar e colar o texto abaixo no Replit:
+
+---
+
+```text
+Você é um desenvolvedor sênior encarregado de EVOLUIR um sistema de gerenciamento de caminhões que já está pronto e funcionando.
+
+Objetivo: 
+Criar um módulo chamado **“Saúde da Frota – Análise Inteligente”**, que gera um diagnóstico inteligente por caminhão (considerando manutenção, trechos e motoristas), e incluir a informação de **motorista principal** no cadastro/listagem de caminhões.
+
+### 1. Contexto do sistema
+
+O sistema já possui:
+- Cadastro de caminhões
+- Cadastro de motoristas
+- Registro de viagens/trechos
+- Registro de manutenções
+
+Use a mesma stack, padrão de código, rotas, estilo visual e organização que já existem no projeto.
+
+### 2. Ajustes de dados necessários
+
+Garanta que existam (ou crie, se ainda não existirem) as seguintes estruturas de dados no backend:
+
+#### Caminhão
+- id
+- placa
+- modelo
+- ano
+- km_atual
+- **motorista_principal_id** (FK para Motorista) → novo campo
+
+#### Motorista
+- id
+- nome
+- outros campos já existentes
+
+#### Manutenções
+- id
+- caminhao_id (FK)
+- data
+- tipo (ex.: óleo, pneu, motor, freio etc.)
+- km_no_momento
+- valor
+- observações (texto livre)
+
+#### Viagens / Trechos
+- id
+- caminhao_id (FK)
+- motorista_id (FK)
+- origem
+- destino
+- distancia_km
+- data_saida
+- data_chegada
+- carga_kg (ou campo de peso aproximado)
+- consumo_combustivel_litros
+- incidentes (texto livre: pane, quebra, multa, atraso etc.)
+
+Se alguma dessas informações já existir com outros nomes, reaproveite e adapte. Evite duplicar dados.
+
+### 3. Motorista principal vinculado ao caminhão
+
+Incluir no sistema:
+
+1) No formulário de cadastro/edição de caminhão:
+   - Campo “Motorista principal” (select de motoristas cadastrados).
+   - Esse campo é opcional, mas se selecionado deve salvar o `motorista_principal_id` do caminhão.
+
+2) Na listagem de caminhões:
+   - Exibir uma coluna “Motorista principal”.
+   - Mostrar o nome do motorista principal (ou “—” se não definido).
+
+3) Em qualquer tela de detalhes do caminhão:
+   - Exibir o motorista principal junto com placa/modelo.
+
+### 4. Módulo “Saúde da Frota – Análise Inteligente”
+
+Criar uma **página de diagnósticos** da frota, com rota clara, por exemplo:
+- `/saude-da-frota` ou equivalente, conforme padrão do projeto.
+
+Nessa página, para cada caminhão da frota, deve existir um **diagnóstico inteligente** gerado a partir dos dados do sistema.
+
+#### 4.1. Dados que o diagnóstico deve considerar
+
+Para cada caminhão, o backend deve consolidar:
+
+- Dados básicos do caminhão:
+  - modelo, ano, placa, km_atual, motorista principal (se existir)
+
+- Histórico de manutenções:
+  - tipos de manutenção mais frequentes (óleo, pneu, freio, motor…)
+  - datas das últimas manutenções
+  - km em que foram feitas
+  - custo total das manutenções em um período (ex.: últimos 6 ou 12 meses)
+  - problemas recorrentes
+
+- Viagens/trechos:
+  - principais rotas (origem → destino mais comuns)
+  - totais de km rodados por período (últimos 30/90/180 dias)
+  - média de consumo de combustível (litros / km)
+  - viagens em que houve incidentes (pane, quebra, atraso, multa)
+
+- Motoristas:
+  - quais motoristas dirigem esse caminhão
+  - consumo médio por motorista (se possível)
+  - incidentes associados a cada motorista
+
+#### 4.2. Funções da IA
+
+Utilizar IA (OpenAI ou API compatível já usada no projeto) no backend para gerar um **relatório textual estruturado** por caminhão, a partir de um prompt bem organizado.
+
+O relatório deve conter, no mínimo, as seções:
+
+1. **Resumo geral**
+   - Descrição em texto simples do estado atual do caminhão.
+
+2. **Saúde do caminhão**
+   - Nota de saúde de 0 a 100.
+   - Classificação de risco: baixo, médio ou alto.
+   - Pontos fortes (ex.: manutenção em dia, baixo número de incidentes).
+   - Pontos críticos (ex.: manutenção atrasada, muitos problemas de freio, etc.).
+
+3. **Trechos e rotas**
+   - Indicar rotas/trechos problemáticos (ex.: alto desgaste de pneus e freios).
+   - Alertar sobre trechos onde mais aconteceram incidentes.
+   - Recomendações relacionadas a rotas (por exemplo, rever velocidade média, evitar determinados horários, etc.).
+
+4. **Motoristas**
+   - Identificar motoristas que mais utilizam esse caminhão.
+   - Comparar comportamento: quem é mais econômico, quem gera mais incidentes ou desgaste.
+   - Recomendações: treinamento, mudança de escala, cuidados específicos.
+
+5. **Previsão de custos e manutenção**
+   - Estimativa aproximada de custos de manutenção para os próximos meses, com base no padrão atual.
+   - Sugestão de quando fazer próxima manutenção preventiva (em dias e/ou km).
+   - Alertas: “se continuar nesse ritmo, risco de quebra ou parada não planejada”.
+
+O prompt enviado à IA deve incluir:
+- Dados consolidados do caminhão (resumo objetivo em formato de texto ou JSON).
+- Instruções claras para a IA retornar o texto sempre com as mesmas seções e numa linguagem simples, direta, voltada para donos de pequenas transportadoras.
+
+#### 4.3. Frontend da página de diagnóstico
+
+Na página “Saúde da Frota”:
+
+- Exibir uma **lista de caminhões**, cada um com:
+  - Placa, modelo, ano
+  - Motorista principal
+  - Nota de saúde (0–100)
+  - Risco (baixo/médio/alto) com cor (verde, amarelo, vermelho)
+  - Botão/ação “Ver diagnóstico completo”
+
+- Ao clicar em “Ver diagnóstico completo”:
+  - Abrir um painel/modal/detalhe com o relatório completo da IA para aquele caminhão, dividido em seções:
+    - Resumo geral
+    - Saúde do caminhão
+    - Trechos e rotas
+    - Motoristas
+    - Previsão de custos e manutenção
+
+- Garantir que exista um botão de **atualizar diagnóstico**, para recalcular os dados mais recentes e chamar novamente a IA (com algum controle de uso para não chamar em excesso se não for necessário).
+
+### 5. Considerações técnicas
+
+- Reutilize a infraestrutura já existente para chamadas de IA (se já houver). Se não houver, implemente de forma simples usando variável de ambiente para a chave da API.
+- Isolar a lógica de montagem do prompt da IA em uma função de serviço no backend (por exemplo: `gerarDiagnosticoCaminhao(caminhaoId)`).
+- Deixar a página de diagnóstico performática:
+  - Buscar primeiro uma lista resumida (com nota e risco).
+  - Carregar o texto completo da IA sob demanda (quando o usuário abre um caminhão específico).
+
+### 6. Critérios de aceitação
+
+- Cadastro/edição de caminhão permite escolher “Motorista principal” e salva corretamente.
+- Listagem de caminhões mostra o nome do motorista principal.
+- Existe uma rota/tela claramente acessível chamada “Saúde da Frota” (ou similar).
+- A tela “Saúde da Frota” lista todos os caminhões com:
+  - nota de saúde
+  - risco (baixo/médio/alto)
+  - motorista principal
+- Para cada caminhão, é possível ver um diagnóstico textual completo gerado por IA com as seções:
+  - Resumo geral
+  - Saúde do caminhão
+  - Trechos e rotas
+  - Motoristas
+  - Previsão de custos e manutenção
+- O código segue o padrão do projeto atual (mesma stack, mesma organização de arquivos e estilos).
+
+Implemente tudo isso de ponta a ponta (backend + frontend), mantendo a coesão com o código já existente.
+```
+
+---
+
+Se quiser depois, eu posso te ajudar a montar também **o prompt interno da IA** (aquele que o backend vai mandar pro modelo) bem bonitinho, com exemplo de entrada e saída, pra ficar consistente e impressionar o cliente quando você mostrar o diagnóstico.
