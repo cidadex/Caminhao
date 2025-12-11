@@ -9,7 +9,7 @@ import type { Truck, MileageRecord } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -32,19 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Route, Loader2, CalendarIcon, MapPin } from "lucide-react";
+import { Plus, Route, Loader2, CalendarIcon, MapPin, Truck as TruckIcon, Sparkles, DollarSign, Gauge, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mileageFormSchema = z.object({
@@ -138,13 +130,13 @@ function MileageFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Novo Registro de KM</DialogTitle>
+          <DialogTitle className="text-xl">Novo Registro de KM</DialogTitle>
           <DialogDescription>
             Registre a quilometragem percorrida e o valor recebido pelo serviço
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <FormField
               control={form.control}
               name="truckId"
@@ -153,7 +145,7 @@ function MileageFormDialog({
                   <FormLabel>Caminhão</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger data-testid="select-mileage-truck">
+                      <SelectTrigger className="h-11" data-testid="select-mileage-truck">
                         <SelectValue placeholder="Selecione o caminhão" />
                       </SelectTrigger>
                     </FormControl>
@@ -180,6 +172,7 @@ function MileageFormDialog({
                     <FormControl>
                       <Input
                         type="number"
+                        className="h-11"
                         placeholder={selectedTruck ? String(Number(selectedTruck.totalKm)) : "0"}
                         data-testid="input-km-initial"
                         {...field}
@@ -196,7 +189,7 @@ function MileageFormDialog({
                   <FormItem>
                     <FormLabel>KM Final</FormLabel>
                     <FormControl>
-                      <Input type="number" data-testid="input-km-final" {...field} />
+                      <Input type="number" className="h-11" data-testid="input-km-final" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -217,7 +210,7 @@ function MileageFormDialog({
                           <Button
                             variant="outline"
                             className={cn(
-                              "pl-3 text-left font-normal",
+                              "h-11 pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
                             )}
                             data-testid="button-select-date"
@@ -252,7 +245,7 @@ function MileageFormDialog({
                   <FormItem>
                     <FormLabel>Valor Recebido (R$)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" data-testid="input-value-received" {...field} />
+                      <Input type="number" step="0.01" className="h-11" data-testid="input-value-received" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -267,7 +260,7 @@ function MileageFormDialog({
                 <FormItem>
                   <FormLabel>Cidade/Rota</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: São Paulo - Rio de Janeiro" data-testid="input-route" {...field} />
+                    <Input placeholder="Ex: São Paulo - Rio de Janeiro" className="h-11" data-testid="input-route" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -275,24 +268,20 @@ function MileageFormDialog({
             />
 
             {kmTraveled > 0 && (
-              <Card className="bg-muted/50">
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-xs text-muted-foreground">KM Percorrido</p>
-                      <p className="text-lg font-bold">{kmTraveled.toLocaleString("pt-BR")} km</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Valor/KM</p>
-                      <p className="text-lg font-bold">{formatCurrency(valuePerKm)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Faturamento</p>
-                      <p className="text-lg font-bold text-green-600">{formatCurrency(valueReceived)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">KM Percorrido</p>
+                  <p className="text-lg font-bold">{kmTraveled.toLocaleString("pt-BR")} km</p>
+                </div>
+                <div className="text-center border-x border-emerald-500/20">
+                  <p className="text-xs text-muted-foreground mb-1">Valor/KM</p>
+                  <p className="text-lg font-bold">{formatCurrency(valuePerKm)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Faturamento</p>
+                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(valueReceived)}</p>
+                </div>
+              </div>
             )}
 
             <div className="flex justify-end gap-3 pt-4">
@@ -319,37 +308,19 @@ function MileageFormDialog({
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div className="flex justify-between">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-9 w-36" />
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-5 w-72" />
+        </div>
+        <Skeleton className="h-10 w-36" />
       </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                  <TableHead key={i}>
-                    <Skeleton className="h-4 w-20" />
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[1, 2, 3, 4].map((row) => (
-                <TableRow key={row}>
-                  {[1, 2, 3, 4, 5, 6, 7].map((cell) => (
-                    <TableCell key={cell}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Skeleton key={i} className="h-48 rounded-2xl" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -380,80 +351,111 @@ export default function MileagePage() {
     return new Intl.NumberFormat("pt-BR").format(Number(value));
   };
 
+  const totalRevenue = records?.reduce((sum, r) => sum + Number(r.valueReceived), 0) || 0;
+  const totalKm = records?.reduce((sum, r) => sum + Number(r.kmTraveled), 0) || 0;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-mileage-title">Registro de KM</h1>
-          <p className="text-muted-foreground">Registre os quilômetros percorridos e valores</p>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium text-primary">Registro</span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-mileage-title">Quilometragem</h1>
+          <p className="text-muted-foreground mt-1">
+            Registre os quilômetros percorridos e valores recebidos
+          </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} data-testid="button-add-mileage">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Registro
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 px-4 py-2 rounded-xl bg-muted/50 border border-border/50">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm font-medium">{formatCurrency(totalRevenue)}</span>
+            </div>
+            <div className="w-px h-4 bg-border" />
+            <div className="flex items-center gap-2">
+              <Gauge className="h-4 w-4 text-violet-600" />
+              <span className="text-sm font-medium">{formatNumber(totalKm)} km</span>
+            </div>
+          </div>
+          <Button onClick={() => setDialogOpen(true)} className="shadow-lg" data-testid="button-add-mileage">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Registro
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {records && records.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Caminhão</TableHead>
-                  <TableHead>Rota</TableHead>
-                  <TableHead className="text-right">KM Inicial</TableHead>
-                  <TableHead className="text-right">KM Final</TableHead>
-                  <TableHead className="text-right">Percorrido</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="text-right">R$/KM</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {records.map((record) => (
-                  <TableRow key={record.id} data-testid={`row-mileage-${record.id}`}>
-                    <TableCell>
-                      {format(new Date(record.date), "dd/MM/yyyy", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {record.truck?.number || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        {record.route}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">{formatNumber(record.kmInitial)}</TableCell>
-                    <TableCell className="text-right">{formatNumber(record.kmFinal)}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatNumber(record.kmTraveled)} km
-                    </TableCell>
-                    <TableCell className="text-right text-green-600 font-medium">
+      {records && records.length > 0 ? (
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {records.map((record) => (
+            <Card 
+              key={record.id}
+              className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              data-testid={`row-mileage-${record.id}`}
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-600" />
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                    <Route className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-emerald-600">
                       {formatCurrency(record.valueReceived)}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {formatCurrency(record.valuePerKm)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-12">
-              <Route className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium">Nenhum registro de KM</h3>
-              <p className="text-muted-foreground mt-1">
-                Adicione seu primeiro registro de quilometragem
-              </p>
-              <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Registro
-              </Button>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(record.date), "dd/MM/yyyy", { locale: ptBR })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <TruckIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Caminhão {record.truck?.number || "-"}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{record.route}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">{formatNumber(record.kmInitial)}</span>
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{formatNumber(record.kmFinal)}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold">{formatNumber(record.kmTraveled)} km</span>
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({formatCurrency(Number(record.valuePerKm))}/km)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="border-0 shadow-lg">
+          <CardContent className="text-center py-16">
+            <div className="flex h-20 w-20 mx-auto mb-6 items-center justify-center rounded-2xl bg-muted/50">
+              <Route className="h-10 w-10 text-muted-foreground/50" />
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <h3 className="text-xl font-semibold mb-2">Nenhum registro de KM</h3>
+            <p className="text-muted-foreground max-w-sm mx-auto">
+              Adicione seu primeiro registro de quilometragem para começar a rastrear suas viagens
+            </p>
+            <Button className="mt-6 shadow-lg" onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Registro
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <MileageFormDialog
         open={dialogOpen}

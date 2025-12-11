@@ -8,14 +8,13 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -32,18 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Truck as TruckIcon, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Truck as TruckIcon, Pencil, Trash2, Loader2, Gauge, Calendar, Hash, Sparkles } from "lucide-react";
 
 const truckFormSchema = z.object({
   number: z.string().min(1, "Número é obrigatório"),
@@ -51,7 +42,7 @@ const truckFormSchema = z.object({
   model: z.string().min(1, "Modelo é obrigatório"),
   year: z.coerce.number().min(1900).max(new Date().getFullYear() + 1),
   totalKm: z.coerce.number().min(0).optional(),
-  status: z.enum(["active", "maintenance"]),
+  status: z.enum(["active", "maintenance", "inactive"]),
 });
 
 type TruckFormData = z.infer<typeof truckFormSchema>;
@@ -76,7 +67,7 @@ function TruckFormDialog({
       model: truck?.model || "",
       year: truck?.year || new Date().getFullYear(),
       totalKm: truck?.totalKm ? Number(truck.totalKm) : 0,
-      status: (truck?.status as "active" | "maintenance") || "active",
+      status: (truck?.status as "active" | "maintenance" | "inactive") || "active",
     },
   });
 
@@ -114,9 +105,9 @@ function TruckFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-xl">
             {isEditing ? "Editar Caminhão" : "Novo Caminhão"}
           </DialogTitle>
           <DialogDescription>
@@ -126,7 +117,7 @@ function TruckFormDialog({
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -135,7 +126,7 @@ function TruckFormDialog({
                   <FormItem>
                     <FormLabel>Número</FormLabel>
                     <FormControl>
-                      <Input placeholder="001" data-testid="input-truck-number" {...field} />
+                      <Input placeholder="001" className="h-11" data-testid="input-truck-number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -150,6 +141,7 @@ function TruckFormDialog({
                     <FormControl>
                       <Input
                         placeholder="ABC1D23"
+                        className="h-11 uppercase"
                         data-testid="input-truck-plate"
                         {...field}
                         onChange={(e) => field.onChange(e.target.value.toUpperCase())}
@@ -168,7 +160,7 @@ function TruckFormDialog({
                   <FormItem>
                     <FormLabel>Modelo</FormLabel>
                     <FormControl>
-                      <Input placeholder="Volvo FH 460" data-testid="input-truck-model" {...field} />
+                      <Input placeholder="Volvo FH 460" className="h-11" data-testid="input-truck-model" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -181,7 +173,7 @@ function TruckFormDialog({
                   <FormItem>
                     <FormLabel>Ano</FormLabel>
                     <FormControl>
-                      <Input type="number" data-testid="input-truck-year" {...field} />
+                      <Input type="number" className="h-11" data-testid="input-truck-year" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -196,7 +188,7 @@ function TruckFormDialog({
                   <FormItem>
                     <FormLabel>KM Total</FormLabel>
                     <FormControl>
-                      <Input type="number" data-testid="input-truck-km" {...field} />
+                      <Input type="number" className="h-11" data-testid="input-truck-km" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -210,13 +202,14 @@ function TruckFormDialog({
                     <FormLabel>Status</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-truck-status">
+                        <SelectTrigger className="h-11" data-testid="select-truck-status">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="active">Ativo</SelectItem>
                         <SelectItem value="maintenance">Em Manutenção</SelectItem>
+                        <SelectItem value="inactive">Inativo</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -322,39 +315,34 @@ function DeleteConfirmDialog({
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex justify-between">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-9 w-32" />
+        <div>
+          <Skeleton className="h-8 w-40 mb-2" />
+          <Skeleton className="h-5 w-64" />
+        </div>
+        <Skeleton className="h-10 w-36" />
       </div>
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <TableHead key={i}>
-                    <Skeleton className="h-4 w-20" />
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[1, 2, 3].map((row) => (
-                <TableRow key={row}>
-                  {[1, 2, 3, 4, 5, 6].map((cell) => (
-                    <TableCell key={cell}>
-                      <Skeleton className="h-4 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-48 rounded-2xl" />
+        ))}
+      </div>
     </div>
   );
+}
+
+function getStatusConfig(status: string) {
+  switch (status) {
+    case "active":
+      return { label: "Ativo", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" };
+    case "maintenance":
+      return { label: "Manutenção", color: "bg-orange-500/10 text-orange-600 border-orange-500/30" };
+    case "inactive":
+      return { label: "Inativo", color: "bg-slate-500/10 text-slate-600 border-slate-500/30" };
+    default:
+      return { label: status, color: "bg-slate-500/10 text-slate-600 border-slate-500/30" };
+  }
 }
 
 export default function TrucksPage() {
@@ -375,100 +363,130 @@ export default function TrucksPage() {
     return new Intl.NumberFormat("pt-BR").format(Number(km));
   };
 
+  const activeTrucks = trucks?.filter(t => t.status === "active").length || 0;
+  const maintenanceTrucks = trucks?.filter(t => t.status === "maintenance").length || 0;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-trucks-title">Caminhões</h1>
-          <p className="text-muted-foreground">Gerencie sua frota de veículos</p>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium text-primary">Frota</span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-trucks-title">Caminhões</h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie sua frota de {trucks?.length || 0} veículos
+          </p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => { setEditingTruck(undefined); setDialogOpen(true); }} data-testid="button-add-truck">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Caminhão
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 px-4 py-2 rounded-xl bg-muted/50 border border-border/50">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-sm text-muted-foreground">{activeTrucks} ativos</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-orange-500" />
+              <span className="text-sm text-muted-foreground">{maintenanceTrucks} em manutenção</span>
+            </div>
+          </div>
+          {isAdmin && (
+            <Button onClick={() => { setEditingTruck(undefined); setDialogOpen(true); }} data-testid="button-add-truck" className="shadow-lg">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Caminhão
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {trucks && trucks.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Placa</TableHead>
-                  <TableHead>Modelo</TableHead>
-                  <TableHead>Ano</TableHead>
-                  <TableHead>KM Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  {isAdmin && <TableHead className="text-right">Ações</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {trucks.map((truck) => (
-                  <TableRow key={truck.id} data-testid={`row-truck-${truck.id}`}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <TruckIcon className="h-4 w-4 text-muted-foreground" />
-                        {truck.number}
+      {trucks && trucks.length > 0 ? (
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {trucks.map((truck) => {
+            const statusConfig = getStatusConfig(truck.status);
+            return (
+              <Card 
+                key={truck.id} 
+                className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                data-testid={`row-truck-${truck.id}`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CardContent className="relative p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/10">
+                      <TruckIcon className="h-6 w-6 text-primary" />
+                    </div>
+                    <Badge variant="outline" className={statusConfig.color}>
+                      {statusConfig.label}
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-2xl font-bold">Caminhão {truck.number}</p>
+                      <p className="text-sm text-muted-foreground font-medium">{truck.plate}</p>
+                    </div>
+                    
+                    <p className="text-sm font-medium text-foreground/80">{truck.model}</p>
+                    
+                    <div className="flex items-center gap-4 pt-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>{truck.year}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>{truck.plate}</TableCell>
-                    <TableCell>{truck.model}</TableCell>
-                    <TableCell>{truck.year}</TableCell>
-                    <TableCell>{formatKm(truck.totalKm)} km</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={truck.status === "active" ? "default" : "secondary"}
-                        className={truck.status === "active" ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-orange-500/10 text-orange-600 border-orange-500/20"}
+                      <div className="flex items-center gap-1.5">
+                        <Gauge className="h-3.5 w-3.5" />
+                        <span>{formatKm(truck.totalKm)} km</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isAdmin && (
+                    <div className="flex justify-end gap-1 mt-4 pt-4 border-t border-border/50">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setEditingTruck(truck); setDialogOpen(true); }}
+                        data-testid={`button-edit-truck-${truck.id}`}
                       >
-                        {truck.status === "active" ? "Ativo" : "Manutenção"}
-                      </Badge>
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => { setEditingTruck(truck); setDialogOpen(true); }}
-                            data-testid={`button-edit-truck-${truck.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingTruck(truck)}
-                            data-testid={`button-delete-truck-${truck.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-12">
-              <TruckIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium">Nenhum caminhão cadastrado</h3>
-              <p className="text-muted-foreground mt-1">
-                Adicione seu primeiro caminhão para começar
-              </p>
-              {isAdmin && (
-                <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Cadastrar Caminhão
-                </Button>
-              )}
+                        <Pencil className="h-4 w-4 mr-1.5" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeletingTruck(truck)}
+                        className="text-destructive hover:text-destructive"
+                        data-testid={`button-delete-truck-${truck.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1.5" />
+                        Excluir
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="border-0 shadow-lg">
+          <CardContent className="text-center py-16">
+            <div className="flex h-20 w-20 mx-auto mb-6 items-center justify-center rounded-2xl bg-muted/50">
+              <TruckIcon className="h-10 w-10 text-muted-foreground/50" />
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <h3 className="text-xl font-semibold mb-2">Nenhum caminhão cadastrado</h3>
+            <p className="text-muted-foreground max-w-sm mx-auto">
+              Adicione seu primeiro caminhão para começar a gerenciar sua frota
+            </p>
+            {isAdmin && (
+              <Button className="mt-6 shadow-lg" onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Cadastrar Caminhão
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <TruckFormDialog
         truck={editingTruck}
