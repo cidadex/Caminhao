@@ -24,6 +24,9 @@ import {
   User,
   Fuel,
   Receipt,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Calculator,
 } from "lucide-react";
 
 const menuItems = [
@@ -56,6 +59,24 @@ const menuItems = [
     title: "Gastos Extras",
     url: "/gastos-extras",
     icon: Receipt,
+  },
+];
+
+const financialItems = [
+  {
+    title: "Resumo Financeiro",
+    url: "/financeiro",
+    icon: Calculator,
+  },
+  {
+    title: "Contas a Pagar",
+    url: "/contas-pagar",
+    icon: ArrowDownCircle,
+  },
+  {
+    title: "Contas a Receber",
+    url: "/contas-receber",
+    icon: ArrowUpCircle,
   },
 ];
 
@@ -135,6 +156,32 @@ export function AppSidebar() {
                       className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
                     >
                       <Link href={item.url} data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground px-4">
+            Financeiro
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {financialItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
+                    >
+                      <Link href={item.url} data-testid={`nav-${item.url.replace("/", "")}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>

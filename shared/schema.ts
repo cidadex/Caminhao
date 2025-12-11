@@ -99,6 +99,7 @@ export const receivables = pgTable("receivables", {
   userId: varchar("user_id").notNull().references(() => users.id),
   date: timestamp("date").notNull(),
   dueDate: timestamp("due_date"),
+  category: text("category").notNull().default("Outros"),
   description: text("description").notNull(),
   value: decimal("value", { precision: 12, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"),
