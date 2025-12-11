@@ -105,6 +105,17 @@ export const payables = pgTable("payables", {
   notes: text("notes"),
 });
 
+// Routes table (Rotas cadastradas)
+export const routes = pgTable("routes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  origin: text("origin").notNull(),
+  destination: text("destination").notNull(),
+  distance: decimal("distance", { precision: 10, scale: 2 }),
+  estimatedTime: text("estimated_time"),
+  notes: text("notes"),
+  status: text("status").notNull().default("active"),
+});
+
 // Contas a Receber (Receivables) - entradas manuais
 export const receivables = pgTable("receivables", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -197,6 +208,7 @@ export const insertFuelExpenseSchema = createInsertSchema(fuelExpenses).omit({ i
 export const insertExtraExpenseSchema = createInsertSchema(extraExpenses).omit({ id: true });
 export const insertPayableSchema = createInsertSchema(payables).omit({ id: true });
 export const insertReceivableSchema = createInsertSchema(receivables).omit({ id: true });
+export const insertRouteSchema = createInsertSchema(routes).omit({ id: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -226,6 +238,9 @@ export type Payable = typeof payables.$inferSelect;
 
 export type InsertReceivable = z.infer<typeof insertReceivableSchema>;
 export type Receivable = typeof receivables.$inferSelect;
+
+export type InsertRoute = z.infer<typeof insertRouteSchema>;
+export type Route = typeof routes.$inferSelect;
 
 // Login schema
 export const loginSchema = z.object({

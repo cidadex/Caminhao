@@ -8,6 +8,7 @@ import {
   extraExpenses,
   payables,
   receivables,
+  routes,
   type User,
   type InsertUser,
   type Driver,
@@ -27,6 +28,8 @@ import {
   type InsertPayable,
   type Receivable,
   type InsertReceivable,
+  type Route,
+  type InsertRoute,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, isNull } from "drizzle-orm";
@@ -75,6 +78,12 @@ export interface IStorage {
   createReceivable(receivable: InsertReceivable): Promise<Receivable>;
   updateReceivable(id: string, receivable: Partial<InsertReceivable>): Promise<Receivable | undefined>;
   deleteReceivable(id: string): Promise<boolean>;
+
+  getRoutes(): Promise<Route[]>;
+  getRoute(id: string): Promise<Route | undefined>;
+  createRoute(route: InsertRoute): Promise<Route>;
+  updateRoute(id: string, route: Partial<InsertRoute>): Promise<Route | undefined>;
+  deleteRoute(id: string): Promise<boolean>;
 
   getDashboardData(): Promise<{
     totalGrossRevenue: number;
@@ -365,6 +374,30 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReceivable(id: string): Promise<boolean> {
     const result = await db.delete(receivables).where(eq(receivables.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getRoutes(): Promise<Route[]> {
+    return db.select().from(routes).orderBy(routes.origin, routes.destination);
+  }
+
+  async getRoute(id: string): Promise<Route | undefined> {
+    const [route] = await db.select().from(routes).where(eq(routes.id, id));
+    return route || undefined;
+  }
+
+  async createRoute(insertRoute: InsertRoute): Promise<Route> {
+    const [route] = await db.insert(routes).values(insertRoute).returning();
+    return route;
+  }
+
+  async updateRoute(id: string, updateData: Partial<InsertRoute>): Promise<Route | undefined> {
+    const [route] = await db.update(routes).set(updateData).where(eq(routes.id, id)).returning();
+    return route || undefined;
+  }
+
+  async deleteRoute(id: string): Promise<boolean> {
+    const result = await db.delete(routes).where(eq(routes.id, id)).returning();
     return result.length > 0;
   }
 

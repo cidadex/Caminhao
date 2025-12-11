@@ -15,6 +15,7 @@ import {
   insertMaintenanceSchema,
   insertFuelExpenseSchema,
   insertExtraExpenseSchema,
+  insertRouteSchema,
   loginSchema,
   trucks,
   drivers,
@@ -854,6 +855,49 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir conta a receber" });
+    }
+  });
+
+  // Routes (Rotas cadastradas)
+  app.get("/api/routes", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const routes = await storage.getRoutes();
+      res.json(routes);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar rotas" });
+    }
+  });
+
+  app.post("/api/routes", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const parsed = insertRouteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const route = await storage.createRoute(parsed.data);
+      res.status(201).json(route);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar rota" });
+    }
+  });
+
+  app.patch("/api/routes/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const route = await storage.updateRoute(req.params.id, req.body);
+      if (!route) return res.status(404).json({ message: "Rota não encontrada" });
+      res.json(route);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar rota" });
+    }
+  });
+
+  app.delete("/api/routes/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const deleted = await storage.deleteRoute(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Rota não encontrada" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir rota" });
     }
   });
 
