@@ -78,6 +78,35 @@ export const extraExpenses = pgTable("extra_expenses", {
   receiptUrl: text("receipt_url"),
 });
 
+// Contas a Pagar (Payables) - saídas manuais
+export const payables = pgTable("payables", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(),
+  dueDate: timestamp("due_date"),
+  category: text("category").notNull(),
+  description: text("description").notNull(),
+  value: decimal("value", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  paidAt: timestamp("paid_at"),
+  receiptUrl: text("receipt_url"),
+  notes: text("notes"),
+});
+
+// Contas a Receber (Receivables) - entradas manuais
+export const receivables = pgTable("receivables", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(),
+  dueDate: timestamp("due_date"),
+  description: text("description").notNull(),
+  value: decimal("value", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  receivedAt: timestamp("received_at"),
+  receiptUrl: text("receipt_url"),
+  notes: text("notes"),
+});
+
 // Relations - defined AFTER all tables
 export const usersRelations = relations(users, ({ many }) => ({
   mileageRecords: many(mileageRecords),
@@ -144,6 +173,8 @@ export const insertMileageRecordSchema = createInsertSchema(mileageRecords).omit
 export const insertMaintenanceSchema = createInsertSchema(maintenances).omit({ id: true });
 export const insertFuelExpenseSchema = createInsertSchema(fuelExpenses).omit({ id: true });
 export const insertExtraExpenseSchema = createInsertSchema(extraExpenses).omit({ id: true });
+export const insertPayableSchema = createInsertSchema(payables).omit({ id: true });
+export const insertReceivableSchema = createInsertSchema(receivables).omit({ id: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -163,6 +194,12 @@ export type FuelExpense = typeof fuelExpenses.$inferSelect;
 
 export type InsertExtraExpense = z.infer<typeof insertExtraExpenseSchema>;
 export type ExtraExpense = typeof extraExpenses.$inferSelect;
+
+export type InsertPayable = z.infer<typeof insertPayableSchema>;
+export type Payable = typeof payables.$inferSelect;
+
+export type InsertReceivable = z.infer<typeof insertReceivableSchema>;
+export type Receivable = typeof receivables.$inferSelect;
 
 // Login schema
 export const loginSchema = z.object({

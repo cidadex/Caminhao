@@ -672,6 +672,176 @@ export async function registerRoutes(
     }
   });
 
+  // Payables (Contas a Pagar) routes
+  app.get("/api/payables", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const payables = await storage.getPayables();
+      res.json(payables);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar contas a pagar" });
+    }
+  });
+
+  app.post("/api/payables", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const payable = await storage.createPayable({
+        ...req.body,
+        userId: req.user!.id,
+        date: new Date(req.body.date),
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+        paidAt: req.body.paidAt ? new Date(req.body.paidAt) : null,
+      });
+      res.status(201).json(payable);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar conta a pagar" });
+    }
+  });
+
+  app.patch("/api/payables/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const data: any = { ...req.body };
+      if (data.date) data.date = new Date(data.date);
+      if (data.dueDate) data.dueDate = new Date(data.dueDate);
+      if (data.paidAt) data.paidAt = new Date(data.paidAt);
+      
+      const payable = await storage.updatePayable(req.params.id, data);
+      if (!payable) return res.status(404).json({ message: "Conta não encontrada" });
+      res.json(payable);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar conta a pagar" });
+    }
+  });
+
+  app.delete("/api/payables/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const deleted = await storage.deletePayable(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Conta não encontrada" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir conta a pagar" });
+    }
+  });
+
+  // Receivables (Contas a Receber) routes
+  app.get("/api/receivables", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const receivables = await storage.getReceivables();
+      res.json(receivables);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar contas a receber" });
+    }
+  });
+
+  app.post("/api/receivables", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const receivable = await storage.createReceivable({
+        ...req.body,
+        userId: req.user!.id,
+        date: new Date(req.body.date),
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+        receivedAt: req.body.receivedAt ? new Date(req.body.receivedAt) : null,
+      });
+      res.status(201).json(receivable);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar conta a receber" });
+    }
+  });
+
+  app.patch("/api/receivables/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const data: any = { ...req.body };
+      if (data.date) data.date = new Date(data.date);
+      if (data.dueDate) data.dueDate = new Date(data.dueDate);
+      if (data.receivedAt) data.receivedAt = new Date(data.receivedAt);
+      
+      const receivable = await storage.updateReceivable(req.params.id, data);
+      if (!receivable) return res.status(404).json({ message: "Conta não encontrada" });
+      res.json(receivable);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar conta a receber" });
+    }
+  });
+
+  app.delete("/api/receivables/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const deleted = await storage.deleteReceivable(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Conta não encontrada" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir conta a receber" });
+    }
+  });
+
+  // Financial Summary route
+  app.get("/api/financial-summary", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+
+      const allPayables = await storage.getPayables();
+      const allReceivables = await storage.getReceivables();
+      const allMileage = await storage.getMileageRecords();
+      const allMaintenance = await storage.getMaintenances();
+      const allFuel = await storage.getFuelExpenses();
+      const allExtra = await storage.getExtraExpenses();
+
+      const filterByDate = (date: Date) => {
+        if (start && date < start) return false;
+        if (end && date > end) return false;
+        return true;
+      };
+
+      const filteredPayables = allPayables.filter(p => filterByDate(new Date(p.date)));
+      const filteredReceivables = allReceivables.filter(r => filterByDate(new Date(r.date)));
+      const filteredMileage = allMileage.filter(m => filterByDate(new Date(m.date)));
+      const filteredMaintenance = allMaintenance.filter(m => filterByDate(new Date(m.date)));
+      const filteredFuel = allFuel.filter(f => filterByDate(new Date(f.date)));
+      const filteredExtra = allExtra.filter(e => filterByDate(new Date(e.date)));
+
+      const totalFreteReceivables = filteredMileage.reduce((sum, m) => sum + Number(m.valueReceived), 0);
+      const totalManualReceivables = filteredReceivables.reduce((sum, r) => sum + Number(r.value), 0);
+      const totalReceivables = totalFreteReceivables + totalManualReceivables;
+
+      const totalManualPayables = filteredPayables.reduce((sum, p) => sum + Number(p.value), 0);
+      const totalMaintenance = filteredMaintenance.reduce((sum, m) => sum + Number(m.value), 0);
+      const totalFuel = filteredFuel.reduce((sum, f) => sum + Number(f.totalCost), 0);
+      const totalExtraExpenses = filteredExtra.reduce((sum, e) => sum + Number(e.totalCost), 0);
+      const totalPayables = totalManualPayables + totalMaintenance + totalFuel + totalExtraExpenses;
+
+      const netProfit = totalReceivables - totalPayables;
+
+      const pendingPayables = filteredPayables.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.value), 0);
+      const paidPayables = filteredPayables.filter(p => p.status === "paid").reduce((sum, p) => sum + Number(p.value), 0);
+      const pendingReceivables = filteredReceivables.filter(r => r.status === "pending").reduce((sum, r) => sum + Number(r.value), 0);
+      const receivedReceivables = filteredReceivables.filter(r => r.status === "received").reduce((sum, r) => sum + Number(r.value), 0);
+
+      res.json({
+        receivables: {
+          frete: totalFreteReceivables,
+          manual: totalManualReceivables,
+          total: totalReceivables,
+          pending: pendingReceivables,
+          received: receivedReceivables + totalFreteReceivables,
+        },
+        payables: {
+          manual: totalManualPayables,
+          maintenance: totalMaintenance,
+          fuel: totalFuel,
+          extras: totalExtraExpenses,
+          total: totalPayables,
+          pending: pendingPayables,
+          paid: paidPayables + totalMaintenance + totalFuel + totalExtraExpenses,
+        },
+        netProfit,
+        profitMargin: totalReceivables > 0 ? (netProfit / totalReceivables) * 100 : 0,
+      });
+    } catch (error) {
+      console.error("Error fetching financial summary:", error);
+      res.status(500).json({ message: "Erro ao buscar resumo financeiro" });
+    }
+  });
+
   app.post("/api/admin/seed-demo-data", authMiddleware as any, adminMiddleware as any, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
