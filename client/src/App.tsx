@@ -13,6 +13,8 @@ import DashboardPage from "@/pages/dashboard";
 import TrucksPage from "@/pages/trucks";
 import MileagePage from "@/pages/mileage";
 import MaintenancesPage from "@/pages/maintenances";
+import FuelPage from "@/pages/fuel";
+import ExtraExpensesPage from "@/pages/extra-expenses";
 import ReportsPage from "@/pages/reports";
 import { Loader2 } from "lucide-react";
 
@@ -110,6 +112,16 @@ function Router() {
       <Route path="/manutencoes">
         <AuthenticatedLayout>
           <ProtectedRoute component={MaintenancesPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/combustivel">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={FuelPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/gastos-extras">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={ExtraExpensesPage} />
         </AuthenticatedLayout>
       </Route>
       <Route path="/relatorios">

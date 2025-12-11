@@ -22,6 +22,8 @@ import {
   FileText,
   LogOut,
   User,
+  Fuel,
+  Receipt,
 } from "lucide-react";
 
 const menuItems = [
@@ -44,6 +46,16 @@ const menuItems = [
     title: "Manutenções",
     url: "/manutencoes",
     icon: Wrench,
+  },
+  {
+    title: "Combustível",
+    url: "/combustivel",
+    icon: Fuel,
+  },
+  {
+    title: "Gastos Extras",
+    url: "/gastos-extras",
+    icon: Receipt,
   },
   {
     title: "Relatórios",
