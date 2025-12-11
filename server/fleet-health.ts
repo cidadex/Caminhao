@@ -298,17 +298,23 @@ Gere um diagnóstico em JSON com a seguinte estrutura:
 Responda APENAS com o JSON, sem texto adicional.`;
 
   try {
+    console.log("Calling OpenAI API for truck diagnostic...");
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      max_completion_tokens: 4096,
+      max_tokens: 4096,
     });
 
+    console.log("OpenAI response received:", JSON.stringify(response, null, 2));
+    
     const content = response.choices[0]?.message?.content;
     if (!content) {
+      console.error("No content in AI response. Full response:", response);
       throw new Error("No response from AI");
     }
+    
+    console.log("AI content:", content);
 
     // Clean and parse JSON response - handle markdown code blocks
     let cleanedContent = content.trim();
