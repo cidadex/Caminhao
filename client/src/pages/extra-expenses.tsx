@@ -90,7 +90,7 @@ function ExtraFormDialog({
   const form = useForm<ExtraFormData>({
     resolver: zodResolver(extraFormSchema),
     defaultValues: {
-      truckId: "",
+      truckId: "none",
       category: "",
       description: "",
       totalCost: 0,
@@ -103,7 +103,7 @@ function ExtraFormDialog({
     mutationFn: async (data: ExtraFormData) => {
       return apiRequest("POST", "/api/extra-expenses", {
         ...data,
-        truckId: data.truckId || null,
+        truckId: data.truckId && data.truckId !== "none" ? data.truckId : null,
         date: data.date.toISOString(),
       });
     },
@@ -154,7 +154,7 @@ function ExtraFormDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Gasto geral (sem caminhão)</SelectItem>
+                      <SelectItem value="none">Gasto geral (sem caminhão)</SelectItem>
                       {trucks.map((truck) => (
                         <SelectItem key={truck.id} value={truck.id}>
                           Caminhão {truck.number} - {truck.plate}
