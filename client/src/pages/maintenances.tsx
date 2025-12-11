@@ -590,7 +590,8 @@ export default function MaintenancesPage() {
       <Card className="border-0 shadow-lg">
         <CardContent className="p-0">
           {filteredMaintenances.length > 0 ? (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
@@ -650,6 +651,7 @@ export default function MaintenancesPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="text-center py-16">
               <div className="flex h-16 w-16 mx-auto mb-4 items-center justify-center rounded-2xl bg-muted/50">

@@ -503,7 +503,8 @@ export default function MileagePage() {
       <Card className="border-0 shadow-lg">
         <CardContent className="p-0">
           {filteredRecords.length > 0 ? (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
@@ -550,6 +551,7 @@ export default function MileagePage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="text-center py-16">
               <div className="flex h-16 w-16 mx-auto mb-4 items-center justify-center rounded-2xl bg-muted/50">

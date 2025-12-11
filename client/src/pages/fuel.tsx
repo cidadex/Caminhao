@@ -506,7 +506,8 @@ export default function FuelPage() {
       <Card className="border-0 shadow-lg">
         <CardContent className="p-0">
           {filteredFuel.length > 0 ? (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
@@ -555,6 +556,7 @@ export default function FuelPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">

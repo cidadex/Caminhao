@@ -225,7 +225,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Faturamento Bruto"
           value={formatCurrency(dashboardData.totalGrossRevenue)}
@@ -256,7 +256,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
         <Card className="relative overflow-hidden border-0 shadow-lg">
           <div className={`absolute inset-0 bg-gradient-to-br ${gradients.maintenance} opacity-[0.05]`} />
           <CardContent className="relative p-5">
@@ -307,14 +307,14 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                    <TrendingUp className="h-4 w-4 text-white" />
+                <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-2">
+                  <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                    <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                   </div>
                   Faturamento vs Custos
                 </CardTitle>

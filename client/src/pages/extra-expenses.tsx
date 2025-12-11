@@ -519,7 +519,8 @@ export default function ExtraExpensesPage() {
       <Card className="border-0 shadow-lg">
         <CardContent className="p-0">
           {filteredExpenses.length > 0 ? (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
@@ -566,6 +567,7 @@ export default function ExtraExpensesPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
