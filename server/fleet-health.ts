@@ -21,27 +21,43 @@ export interface FleetHealthSummary {
 }
 
 export interface FleetHealthDiagnostic {
-  summary: string;
+  truckId: string;
+  truckLabel: string;
   healthScore: number;
   riskLevel: "baixo" | "medio" | "alto";
-  strengths: string[];
-  criticalPoints: string[];
-  routes: {
-    problematicRoutes: string[];
-    recommendations: string[];
+  summary: {
+    overview: string;
   };
-  drivers: {
-    mainDrivers: string[];
-    comparison: string;
-    recommendations: string[];
+  sections: {
+    vehicleHealth: {
+      title: string;
+      text: string;
+      mainIssues: string[];
+      positivePoints: string[];
+    };
+    routes: {
+      title: string;
+      text: string;
+      riskyRoutes: string[];
+      recommendations: string[];
+    };
+    drivers: {
+      title: string;
+      text: string;
+      mainDrivers: Array<{
+        nome: string;
+        resumo: string;
+      }>;
+      recommendations: string[];
+    };
+    costForecast: {
+      title: string;
+      text: string;
+      estimatedMonthlyMaintenanceCost: number;
+      nextMaintenanceSuggestion: string;
+      alerts: string[];
+    };
   };
-  costPrediction: {
-    estimatedMaintenanceCost: number;
-    nextMaintenanceKm: number;
-    nextMaintenanceDate: string;
-    warnings: string[];
-  };
-  fullReport: string;
 }
 
 interface TruckDataForDiagnostic {
@@ -246,56 +262,128 @@ export async function generateTruckDiagnostic(truckId: string): Promise<FleetHea
   const totalRevenue = data.trips.reduce((sum, t) => sum + t.valueReceived, 0);
   const totalFuelCost = data.fuelExpenses.reduce((sum, f) => sum + f.totalCost, 0);
   const totalLiters = data.fuelExpenses.reduce((sum, f) => sum + f.liters, 0);
+  const avgKmPerLiter = totalLiters > 0 ? totalKmTrips / totalLiters : 0;
+
+  // Build input data for AI
+  const inputData = {
+    truck: {
+      id: data.truck.id,
+      placa: data.truck.plate,
+      modelo: data.truck.model,
+      ano: data.truck.year,
+      km_atual: data.truck.totalKm,
+      motorista_principal: data.truck.mainDriverName ? {
+        id: "m1",
+        nome: data.truck.mainDriverName
+      } : null
+    },
+    maintenance_history: data.maintenances.map(m => ({
+      data: m.date.toISOString().split("T")[0],
+      tipo: m.type,
+      km_no_momento: data.truck.totalKm,
+      valor: m.value,
+      observacoes: m.observations || ""
+    })),
+    trip_history: data.trips.map(t => ({
+      data_saida: t.date.toISOString().split("T")[0],
+      data_chegada: t.date.toISOString().split("T")[0],
+      origem: t.route.split(" - ")[0] || t.route,
+      destino: t.route.split(" - ")[1] || t.route,
+      distancia_km: t.kmTraveled,
+      valor_recebido: t.valueReceived,
+      incidentes: "nenhum"
+    })),
+    driver_stats: {
+      motoristas: data.truck.mainDriverName ? [{
+        id: "m1",
+        nome: data.truck.mainDriverName,
+        km_rodados: totalKmTrips,
+        consumo_medio_litro_por_km: totalLiters > 0 ? totalLiters / totalKmTrips : 0,
+        qtd_incidentes: 0,
+        tipos_incidentes: []
+      }] : []
+    },
+    period_summary: {
+      periodo_descricao: "ultimos 6 meses",
+      km_total_no_periodo: totalKmTrips,
+      custo_total_manutencao_no_periodo: totalMaintenanceCost,
+      qtd_manutencoes: data.maintenances.length,
+      qtd_viagens: totalTrips,
+      qtd_incidentes: 0
+    }
+  };
 
   // Build the prompt for the AI
-  const prompt = `Você é um especialista em gestão de frotas de caminhões. Analise os dados do caminhão abaixo e gere um diagnóstico completo.
+  const prompt = `Você é um analista especialista em gestão de frota de caminhões. 
+Sua função é receber dados consolidados de UM caminhão e produzir um DIAGNÓSTICO COMPLETO, estruturado e objetivo, em formato JSON, pronto para ser exibido em tela e usado em gráficos.
 
-DADOS DO CAMINHÃO:
-- Número: ${data.truck.number}
-- Placa: ${data.truck.plate}
-- Modelo: ${data.truck.model}
-- Ano: ${data.truck.year}
-- KM Total: ${data.truck.totalKm.toLocaleString("pt-BR")} km
-- Status: ${data.truck.status}
-- Motorista Principal: ${data.truck.mainDriverName || "Não definido"}
+Você SEMPRE deve:
+- Analisar manutenção, trechos (rotas) e motoristas.
+- Calcular uma NOTA DE SAÚDE do caminhão entre 0 e 100 (health_score).
+- Classificar o nível de risco em "baixo", "medio" ou "alto" (risk_level).
+- Gerar textos explicativos para o dono de uma pequena transportadora, em linguagem simples.
+- NUNCA mudar a estrutura do JSON pedida.
 
-HISTÓRICO DE MANUTENÇÕES (últimos 6 meses):
-${data.maintenances.length > 0 
-  ? data.maintenances.map(m => `- ${m.type}: R$ ${m.value.toFixed(2)} em ${m.date.toLocaleDateString("pt-BR")}${m.observations ? ` (${m.observations})` : ""}`).join("\n")
-  : "Nenhuma manutenção registrada"}
-Total gasto em manutenções: R$ ${totalMaintenanceCost.toFixed(2)}
+Com base nos dados recebidos em ${JSON.stringify(inputData)}, você deve:
 
-VIAGENS (últimos 6 meses):
-- Total de viagens: ${totalTrips}
-- Total de KM rodados: ${totalKmTrips.toLocaleString("pt-BR")} km
-- Faturamento total: R$ ${totalRevenue.toFixed(2)}
-- Rotas realizadas: ${Array.from(new Set(data.trips.map(t => t.route))).join(", ") || "Nenhuma"}
+1. Avaliar a frequência e o tipo das manutenções.
+2. Avaliar o uso do caminhão (km rodados, tipo de rota, incidência de problemas).
+3. Comparar sinais de desgaste elevado, manutenção atrasada, muitos incidentes, consumo alto de combustível, etc.
+4. Avaliar o comportamento dos motoristas que dirigem esse caminhão.
+5. Estimar, de forma aproximada, custos futuros de manutenção se o padrão atual continuar.
 
-COMBUSTÍVEL (últimos 6 meses):
-- Gasto total: R$ ${totalFuelCost.toFixed(2)}
-- Litros abastecidos: ${totalLiters.toFixed(0)}
-- Média km/L: ${totalLiters > 0 ? (totalKmTrips / totalLiters).toFixed(2) : "N/A"}
+### SAÍDA
 
-Gere um diagnóstico em JSON com a seguinte estrutura:
+Responda SEMPRE em JSON seguindo exatamente esta estrutura:
+
 {
-  "resumo_geral": "texto resumindo o estado do caminhão em 2-3 frases simples",
-  "nota_saude": ${score},
-  "nivel_risco": "${riskLevel}",
-  "pontos_fortes": ["lista de pontos positivos"],
-  "pontos_criticos": ["lista de pontos que precisam atenção"],
-  "trechos_problematicos": ["rotas ou trechos que podem estar causando desgaste"],
-  "recomendacoes_rotas": ["sugestões para otimizar rotas"],
-  "motoristas_principais": ["nomes dos motoristas que mais usam o caminhão"],
-  "comparacao_motoristas": "texto comparando comportamento dos motoristas se houver dados",
-  "recomendacoes_motoristas": ["sugestões de treinamento ou mudanças"],
-  "custo_manutencao_estimado_proximos_6_meses": número estimado em reais,
-  "proximo_km_manutencao": km sugerido para próxima manutenção preventiva,
-  "proxima_data_manutencao": "data sugerida formato DD/MM/AAAA",
-  "alertas": ["avisos importantes sobre riscos futuros"],
-  "relatorio_completo": "texto detalhado com toda a análise em linguagem simples para donos de transportadoras"
+  "truck_id": "string",
+  "truck_label": "string", 
+  "health_score": 0-100,
+  "risk_level": "baixo" | "medio" | "alto",
+  "summary": {
+    "overview": "texto curto explicando o estado geral do caminhão em 2 a 4 frases."
+  },
+  "sections": {
+    "vehicle_health": {
+      "title": "Saúde do caminhão",
+      "text": "texto explicando situação de manutenção, problemas recorrentes, se está em dia ou não, etc.",
+      "main_issues": ["lista de problemas principais em formato de frase curta"],
+      "positive_points": ["lista de pontos positivos em formato de frase curta"]
+    },
+    "routes": {
+      "title": "Trechos e rotas",
+      "text": "texto analisando os trechos, desgaste por rota, incidentes em determinadas rotas, etc.",
+      "risky_routes": ["se houver, listar rotas consideradas mais críticas"],
+      "recommendations": ["recomendações relacionadas a rotas, velocidade, planejamento de viagens"]
+    },
+    "drivers": {
+      "title": "Motoristas",
+      "text": "texto analisando o impacto dos motoristas no caminhão (consumo, incidentes etc.).",
+      "main_drivers": [
+        {
+          "nome": "string",
+          "resumo": "resumo do comportamento desse motorista com esse caminhão"
+        }
+      ],
+      "recommendations": ["recomendações de treinamento, mudança de escala, cuidados específicos"]
+    },
+    "cost_forecast": {
+      "title": "Previsão de custos e manutenção",
+      "text": "texto explicando a previsão aproximada de custos se o padrão atual continuar.",
+      "estimated_monthly_maintenance_cost": numero_aproximado_sem_simbolo,
+      "next_maintenance_suggestion": "frase com sugestão de quando fazer a próxima manutenção",
+      "alerts": ["alertas importantes sobre risco de quebra, necessidade de manutenção urgente, etc."]
+    }
+  }
 }
 
-Responda APENAS com o JSON, sem texto adicional.`;
+Regras IMPORTANTES:
+- "health_score" deve ser um número de 0 a 100 (pode ser inteiro).
+- "risk_level" deve ser coerente com a nota: 0-40: "alto", 41-70: "medio", 71-100: "baixo"
+- Use linguagem simples, direta, sem termos técnicos demais.
+- Não inclua comentários fora do JSON.
+- Não invente dados: use apenas padrões coerentes com os números fornecidos.`;
 
   try {
     console.log("Calling OpenAI API for truck diagnostic...");
@@ -337,54 +425,80 @@ Responda APENAS com o JSON, sem texto adicional.`;
     }
 
     return {
-      summary: aiResult.resumo_geral || "",
-      healthScore: score,
-      riskLevel,
-      strengths: aiResult.pontos_fortes || [],
-      criticalPoints: aiResult.pontos_criticos || [],
-      routes: {
-        problematicRoutes: aiResult.trechos_problematicos || [],
-        recommendations: aiResult.recomendacoes_rotas || [],
+      truckId: aiResult.truck_id || data.truck.id,
+      truckLabel: aiResult.truck_label || `${data.truck.plate} - ${data.truck.model}`,
+      healthScore: aiResult.health_score || score,
+      riskLevel: aiResult.risk_level || riskLevel,
+      summary: {
+        overview: aiResult.summary?.overview || ""
       },
-      drivers: {
-        mainDrivers: aiResult.motoristas_principais || [data.truck.mainDriverName].filter(Boolean),
-        comparison: aiResult.comparacao_motoristas || "",
-        recommendations: aiResult.recomendacoes_motoristas || [],
-      },
-      costPrediction: {
-        estimatedMaintenanceCost: aiResult.custo_manutencao_estimado_proximos_6_meses || 0,
-        nextMaintenanceKm: aiResult.proximo_km_manutencao || data.truck.totalKm + 10000,
-        nextMaintenanceDate: aiResult.proxima_data_manutencao || "",
-        warnings: aiResult.alertas || [],
-      },
-      fullReport: aiResult.relatorio_completo || "",
+      sections: {
+        vehicleHealth: {
+          title: aiResult.sections?.vehicle_health?.title || "Saúde do Caminhão",
+          text: aiResult.sections?.vehicle_health?.text || "",
+          mainIssues: aiResult.sections?.vehicle_health?.main_issues || [],
+          positivePoints: aiResult.sections?.vehicle_health?.positive_points || []
+        },
+        routes: {
+          title: aiResult.sections?.routes?.title || "Trechos e Rotas",
+          text: aiResult.sections?.routes?.text || "",
+          riskyRoutes: aiResult.sections?.routes?.risky_routes || [],
+          recommendations: aiResult.sections?.routes?.recommendations || []
+        },
+        drivers: {
+          title: aiResult.sections?.drivers?.title || "Motoristas",
+          text: aiResult.sections?.drivers?.text || "",
+          mainDrivers: aiResult.sections?.drivers?.main_drivers || [],
+          recommendations: aiResult.sections?.drivers?.recommendations || []
+        },
+        costForecast: {
+          title: aiResult.sections?.cost_forecast?.title || "Previsão de Custos",
+          text: aiResult.sections?.cost_forecast?.text || "",
+          estimatedMonthlyMaintenanceCost: Number(aiResult.sections?.cost_forecast?.estimated_monthly_maintenance_cost) || 0,
+          nextMaintenanceSuggestion: aiResult.sections?.cost_forecast?.next_maintenance_suggestion || "",
+          alerts: aiResult.sections?.cost_forecast?.alerts || []
+        }
+      }
     };
   } catch (error) {
     console.error("Error generating AI diagnostic:", error);
     
     // Fallback to basic diagnostic without AI
     return {
-      summary: `Caminhão ${data.truck.plate} (${data.truck.model} ${data.truck.year}) com ${data.truck.totalKm.toLocaleString("pt-BR")} km rodados. ${riskLevel === "alto" ? "Necessita atenção urgente." : riskLevel === "medio" ? "Requer monitoramento." : "Em bom estado."}`,
+      truckId: data.truck.id,
+      truckLabel: `${data.truck.plate} - ${data.truck.model}`,
       healthScore: score,
       riskLevel,
-      strengths: score >= 70 ? ["Bom histórico geral de manutenção"] : [],
-      criticalPoints: score < 70 ? ["Revisar histórico de manutenções"] : [],
-      routes: {
-        problematicRoutes: [],
-        recommendations: ["Monitorar consumo de combustível por rota"],
+      summary: {
+        overview: `Caminhão ${data.truck.plate} (${data.truck.model} ${data.truck.year}) com ${data.truck.totalKm.toLocaleString("pt-BR")} km rodados. ${riskLevel === "alto" ? "Necessita atenção urgente." : riskLevel === "medio" ? "Requer monitoramento." : "Em bom estado."}`
       },
-      drivers: {
-        mainDrivers: data.truck.mainDriverName ? [data.truck.mainDriverName] : [],
-        comparison: "Dados insuficientes para comparação",
-        recommendations: ["Registrar mais viagens para análise detalhada"],
-      },
-      costPrediction: {
-        estimatedMaintenanceCost: totalMaintenanceCost * 0.8,
-        nextMaintenanceKm: data.truck.totalKm + 10000,
-        nextMaintenanceDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR"),
-        warnings: ["Análise baseada em dados limitados"],
-      },
-      fullReport: "Diagnóstico gerado com dados básicos. Para análise completa, registre mais viagens e manutenções.",
+      sections: {
+        vehicleHealth: {
+          title: "Saúde do Caminhão",
+          text: "Diagnóstico gerado com dados básicos. Para análise completa, registre mais viagens e manutenções.",
+          mainIssues: score < 70 ? ["Revisar histórico de manutenções"] : [],
+          positivePoints: score >= 70 ? ["Bom histórico geral de manutenção"] : []
+        },
+        routes: {
+          title: "Trechos e Rotas",
+          text: "Dados insuficientes para análise detalhada de rotas.",
+          riskyRoutes: [],
+          recommendations: ["Monitorar consumo de combustível por rota"]
+        },
+        drivers: {
+          title: "Motoristas",
+          text: "Dados insuficientes para comparação de motoristas.",
+          mainDrivers: data.truck.mainDriverName ? [{ nome: data.truck.mainDriverName, resumo: "Motorista principal" }] : [],
+          recommendations: ["Registrar mais viagens para análise detalhada"]
+        },
+        costForecast: {
+          title: "Previsão de Custos",
+          text: "Estimativa baseada em dados limitados.",
+          estimatedMonthlyMaintenanceCost: totalMaintenanceCost / 6,
+          nextMaintenanceSuggestion: `Próxima manutenção sugerida em ${(data.truck.totalKm + 10000).toLocaleString("pt-BR")} km`,
+          alerts: ["Análise baseada em dados limitados"]
+        }
+      }
     };
   }
 }

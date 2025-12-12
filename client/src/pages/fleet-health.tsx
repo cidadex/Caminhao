@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -19,12 +17,26 @@ import {
   Route as RouteIcon,
   User,
   DollarSign,
-  Calendar,
   ArrowLeft,
   Loader2,
   Activity,
   Sparkles,
+  BarChart3,
+  PieChart as PieChartIcon,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 
 interface FleetHealthSummary {
   truckId: string;
@@ -38,27 +50,43 @@ interface FleetHealthSummary {
 }
 
 interface FleetHealthDiagnostic {
-  summary: string;
+  truckId: string;
+  truckLabel: string;
   healthScore: number;
   riskLevel: "baixo" | "medio" | "alto";
-  strengths: string[];
-  criticalPoints: string[];
-  routes: {
-    problematicRoutes: string[];
-    recommendations: string[];
+  summary: {
+    overview: string;
   };
-  drivers: {
-    mainDrivers: string[];
-    comparison: string;
-    recommendations: string[];
+  sections: {
+    vehicleHealth: {
+      title: string;
+      text: string;
+      mainIssues: string[];
+      positivePoints: string[];
+    };
+    routes: {
+      title: string;
+      text: string;
+      riskyRoutes: string[];
+      recommendations: string[];
+    };
+    drivers: {
+      title: string;
+      text: string;
+      mainDrivers: Array<{
+        nome: string;
+        resumo: string;
+      }>;
+      recommendations: string[];
+    };
+    costForecast: {
+      title: string;
+      text: string;
+      estimatedMonthlyMaintenanceCost: number;
+      nextMaintenanceSuggestion: string;
+      alerts: string[];
+    };
   };
-  costPrediction: {
-    estimatedMaintenanceCost: number;
-    nextMaintenanceKm: number;
-    nextMaintenanceDate: string;
-    warnings: string[];
-  };
-  fullReport: string;
 }
 
 function getRiskBadgeVariant(riskLevel: string): "default" | "secondary" | "destructive" {
@@ -87,6 +115,130 @@ function getScoreColor(score: number): string {
   if (score >= 70) return "text-green-600 dark:text-green-400";
   if (score >= 50) return "text-yellow-600 dark:text-yellow-400";
   return "text-red-600 dark:text-red-400";
+}
+
+const RISK_COLORS = {
+  baixo: "#22c55e",
+  medio: "#eab308",
+  alto: "#ef4444",
+};
+
+function FleetChartsSection({ trucks }: { trucks: FleetHealthSummary[] }) {
+  const barChartData = trucks.map((t) => ({
+    name: t.plate,
+    score: t.healthScore,
+    fill: RISK_COLORS[t.riskLevel],
+  }));
+
+  const riskDistribution = trucks.reduce(
+    (acc, t) => {
+      acc[t.riskLevel] = (acc[t.riskLevel] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const pieChartData = [
+    { name: "Baixo Risco", value: riskDistribution.baixo || 0, color: RISK_COLORS.baixo },
+    { name: "Médio Risco", value: riskDistribution.medio || 0, color: RISK_COLORS.medio },
+    { name: "Alto Risco", value: riskDistribution.alto || 0, color: RISK_COLORS.alto },
+  ].filter((d) => d.value > 0);
+
+  const avgScore = trucks.length > 0 
+    ? Math.round(trucks.reduce((sum, t) => sum + t.healthScore, 0) / trucks.length)
+    : 0;
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Média de Saúde da Frota
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-4">
+            <div className={`text-5xl font-bold ${getScoreColor(avgScore)}`}>
+              {avgScore}
+              <span className="text-lg font-normal text-muted-foreground">/100</span>
+            </div>
+          </div>
+          <Progress value={avgScore} className="h-3" />
+          <p className="text-center text-sm text-muted-foreground mt-2">
+            {trucks.length} caminhões analisados
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Saúde por Caminhão
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barChartData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                <YAxis dataKey="name" type="category" width={70} tick={{ fontSize: 11 }} />
+                <Tooltip 
+                  formatter={(value: number) => [`${value} pontos`, "Saúde"]}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Bar dataKey="score" radius={[0, 4, 4, 0]}>
+                  {barChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <PieChartIcon className="h-4 w-4" />
+            Distribuição de Risco
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={70}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, value }) => `${value}`}
+                  labelLine={false}
+                >
+                  {pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number, name: string) => [`${value} caminhões`, name]} />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36}
+                  formatter={(value) => <span className="text-xs">{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function TruckHealthCard({ 
@@ -233,7 +385,7 @@ function DiagnosticView({
           </Button>
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              Diagnóstico IA - {plate}
+              Diagnóstico IA - {diagnostic.truckLabel || plate}
               <Badge variant={getRiskBadgeVariant(diagnostic.riskLevel)}>
                 {getRiskLabel(diagnostic.riskLevel)}
               </Badge>
@@ -257,120 +409,82 @@ function DiagnosticView({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">{diagnostic.summary}</p>
+          <p className="text-muted-foreground">{diagnostic.summary.overview}</p>
         </CardContent>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card data-testid="card-strengths">
+        <Card data-testid="card-vehicle-health">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2 text-green-600 dark:text-green-400">
-              <CheckCircle className="h-5 w-5" />
-              Pontos Fortes
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              {diagnostic.sections.vehicleHealth.title}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {diagnostic.strengths.length > 0 ? (
-              <ul className="space-y-2">
-                {diagnostic.strengths.map((item, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 mt-0.5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                    <span className="text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhum ponto forte identificado</p>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{diagnostic.sections.vehicleHealth.text}</p>
+            
+            {diagnostic.sections.vehicleHealth.positivePoints.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2 text-green-600 dark:text-green-400">Pontos Positivos</h4>
+                <ul className="space-y-1">
+                  {diagnostic.sections.vehicleHealth.positivePoints.map((item, index) => (
+                    <li key={index} className="flex items-start gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 mt-0.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {diagnostic.sections.vehicleHealth.mainIssues.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2 text-red-600 dark:text-red-400">Problemas Principais</h4>
+                <ul className="space-y-1">
+                  {diagnostic.sections.vehicleHealth.mainIssues.map((item, index) => (
+                    <li key={index} className="flex items-start gap-2 text-sm">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card data-testid="card-critical-points">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2 text-red-600 dark:text-red-400">
-              <AlertTriangle className="h-5 w-5" />
-              Pontos Críticos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {diagnostic.criticalPoints.length > 0 ? (
-              <ul className="space-y-2">
-                {diagnostic.criticalPoints.map((item, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 mt-0.5 text-red-600 dark:text-red-400 flex-shrink-0" />
-                    <span className="text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhum ponto crítico identificado</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
         <Card data-testid="card-routes">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <RouteIcon className="h-5 w-5" />
-              Análise de Rotas
+              {diagnostic.sections.routes.title}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {diagnostic.routes.problematicRoutes.length > 0 && (
+            <p className="text-sm text-muted-foreground">{diagnostic.sections.routes.text}</p>
+            
+            {diagnostic.sections.routes.riskyRoutes.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium mb-2">Rotas Problemáticas</h4>
+                <h4 className="text-sm font-medium mb-2">Rotas de Risco</h4>
                 <ul className="space-y-1">
-                  {diagnostic.routes.problematicRoutes.map((route, index) => (
-                    <li key={index} className="text-sm text-muted-foreground">
+                  {diagnostic.sections.routes.riskyRoutes.map((route, index) => (
+                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <AlertTriangle className="h-3 w-3 mt-1 flex-shrink-0 text-yellow-600" />
                       {route}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
-            <div>
-              <h4 className="text-sm font-medium mb-2">Recomendações</h4>
-              <ul className="space-y-1">
-                {diagnostic.routes.recommendations.map((rec, index) => (
-                  <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <TrendingUp className="h-3 w-3 mt-1 flex-shrink-0" />
-                    {rec}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-drivers">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Análise de Motoristas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {diagnostic.drivers.mainDrivers.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium mb-2">Motoristas Principais</h4>
-                <div className="flex flex-wrap gap-2">
-                  {diagnostic.drivers.mainDrivers.map((driver, index) => (
-                    <Badge key={index} variant="secondary">{driver}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {diagnostic.drivers.comparison && (
-              <p className="text-sm text-muted-foreground">{diagnostic.drivers.comparison}</p>
-            )}
-            {diagnostic.drivers.recommendations.length > 0 && (
+            
+            {diagnostic.sections.routes.recommendations.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium mb-2">Recomendações</h4>
                 <ul className="space-y-1">
-                  {diagnostic.drivers.recommendations.map((rec, index) => (
-                    <li key={index} className="text-sm text-muted-foreground">
+                  {diagnostic.sections.routes.recommendations.map((rec, index) => (
+                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <TrendingUp className="h-3 w-3 mt-1 flex-shrink-0" />
                       {rec}
                     </li>
                   ))}
@@ -381,228 +495,208 @@ function DiagnosticView({
         </Card>
       </div>
 
-      <Card data-testid="card-predictions">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Previsões e Alertas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Custo Estimado (6 meses)</p>
-              <p className="text-xl font-semibold">
-                R$ {diagnostic.costPrediction.estimatedMaintenanceCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Próxima Manutenção (KM)</p>
-              <p className="text-xl font-semibold">
-                {diagnostic.costPrediction.nextMaintenanceKm.toLocaleString("pt-BR")} km
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Data Sugerida</p>
-              <p className="text-xl font-semibold flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                {diagnostic.costPrediction.nextMaintenanceDate || "A definir"}
-              </p>
-            </div>
-          </div>
-
-          {diagnostic.costPrediction.warnings.length > 0 && (
-            <>
-              <Separator className="my-4" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card data-testid="card-drivers">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {diagnostic.sections.drivers.title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{diagnostic.sections.drivers.text}</p>
+            
+            {diagnostic.sections.drivers.mainDrivers.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  Alertas
-                </h4>
+                <h4 className="text-sm font-medium mb-2">Motoristas Principais</h4>
+                <div className="space-y-2">
+                  {diagnostic.sections.drivers.mainDrivers.map((driver, index) => (
+                    <div key={index} className="p-2 rounded-md bg-muted/50">
+                      <p className="font-medium text-sm">{driver.nome}</p>
+                      <p className="text-xs text-muted-foreground">{driver.resumo}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {diagnostic.sections.drivers.recommendations.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Recomendações</h4>
                 <ul className="space-y-1">
-                  {diagnostic.costPrediction.warnings.map((warning, index) => (
+                  {diagnostic.sections.drivers.recommendations.map((rec, index) => (
                     <li key={index} className="text-sm text-muted-foreground">
-                      {warning}
+                      {rec}
                     </li>
                   ))}
                 </ul>
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {diagnostic.fullReport && (
-        <Card data-testid="card-full-report">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              Relatório Completo
-            </CardTitle>
-            <CardDescription>
-              Análise detalhada gerada por inteligência artificial
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-64">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {diagnostic.fullReport}
-              </p>
-            </ScrollArea>
+            )}
           </CardContent>
         </Card>
-      )}
+
+        <Card data-testid="card-cost-forecast">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              {diagnostic.sections.costForecast.title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{diagnostic.sections.costForecast.text}</p>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-md bg-muted/50">
+                <p className="text-xs text-muted-foreground">Custo Mensal Estimado</p>
+                <p className="text-lg font-semibold">
+                  R$ {diagnostic.sections.costForecast.estimatedMonthlyMaintenanceCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="p-3 rounded-md bg-muted/50">
+                <p className="text-xs text-muted-foreground">Próxima Manutenção</p>
+                <p className="text-sm font-medium">
+                  {diagnostic.sections.costForecast.nextMaintenanceSuggestion || "A definir"}
+                </p>
+              </div>
+            </div>
+            
+            {diagnostic.sections.costForecast.alerts.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2 text-red-600 dark:text-red-400">Alertas</h4>
+                <ul className="space-y-1">
+                  {diagnostic.sections.costForecast.alerts.map((alert, index) => (
+                    <li key={index} className="text-sm text-red-600 dark:text-red-400 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      {alert}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
 export default function FleetHealthPage() {
   const [selectedTruckId, setSelectedTruckId] = useState<string | null>(null);
-  const [selectedPlate, setSelectedPlate] = useState<string>("");
+  const [selectedTruckPlate, setSelectedTruckPlate] = useState<string>("");
 
-  const { data: trucks, isLoading } = useQuery<FleetHealthSummary[]>({
+  const { data: trucks, isLoading, error } = useQuery<FleetHealthSummary[]>({
     queryKey: ["/api/fleet-health"],
   });
 
   const handleAnalyze = (truckId: string) => {
-    const truck = trucks?.find(t => t.truckId === truckId);
+    const truck = trucks?.find((t) => t.truckId === truckId);
     if (truck) {
-      setSelectedPlate(truck.plate);
+      setSelectedTruckPlate(truck.plate);
       setSelectedTruckId(truckId);
     }
   };
 
+  const handleBack = () => {
+    setSelectedTruckId(null);
+    setSelectedTruckPlate("");
+  };
+
   if (selectedTruckId) {
     return (
-      <DiagnosticView 
-        truckId={selectedTruckId}
-        plate={selectedPlate}
-        onBack={() => setSelectedTruckId(null)}
-      />
+      <div className="p-6">
+        <DiagnosticView 
+          truckId={selectedTruckId} 
+          plate={selectedTruckPlate}
+          onBack={handleBack}
+        />
+      </div>
     );
   }
 
-  const sortedTrucks = trucks?.sort((a, b) => a.healthScore - b.healthScore) || [];
-  const averageScore = sortedTrucks.length > 0 
-    ? Math.round(sortedTrucks.reduce((sum, t) => sum + t.healthScore, 0) / sortedTrucks.length)
-    : 0;
-  const highRiskCount = sortedTrucks.filter(t => t.riskLevel === "alto").length;
-  const mediumRiskCount = sortedTrucks.filter(t => t.riskLevel === "medio").length;
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <HeartPulse className="h-6 w-6" />
-          Saúde da Frota
-        </h1>
-        <p className="text-muted-foreground">
-          Análise inteligente da saúde dos seus caminhões com IA
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card data-testid="card-total-trucks">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                <Truck className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total de Caminhões</p>
-                <p className="text-2xl font-bold">{sortedTrucks.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-average-score">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                <Activity className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Saúde Média</p>
-                <p className={`text-2xl font-bold ${getScoreColor(averageScore)}`}>
-                  {averageScore}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-high-risk">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Alto Risco</p>
-                <p className="text-2xl font-bold text-destructive">{highRiskCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-medium-risk">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-yellow-500/10">
-                <TrendingUp className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Médio Risco</p>
-                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                  {mediumRiskCount}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-4 space-y-4">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-md" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-32" />
-                  </div>
-                  <Skeleton className="h-8 w-12" />
-                </div>
-                <Skeleton className="h-2 w-full" />
-                <Skeleton className="h-9 w-full" />
-              </CardContent>
-            </Card>
+            <Skeleton key={i} className="h-48" />
           ))}
         </div>
-      ) : sortedTrucks.length === 0 ? (
+      </div>
+    );
+  }
+
+  if (error || !trucks) {
+    return (
+      <div className="p-6">
         <Card>
           <CardContent className="p-8 text-center">
-            <Truck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhum caminhão cadastrado</h3>
+            <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
-              Cadastre caminhões para ver a análise de saúde da frota.
+              Não foi possível carregar os dados da frota.
             </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sortedTrucks.map((truck) => (
-            <TruckHealthCard 
-              key={truck.truckId} 
-              truck={truck} 
-              onAnalyze={handleAnalyze}
-            />
-          ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium text-primary">Inteligência Artificial</span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2" data-testid="text-fleet-health-title">
+            <HeartPulse className="h-8 w-8" />
+            Saúde da Frota
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Análise inteligente de diagnóstico e prevenção para seus caminhões
+          </p>
         </div>
-      )}
+      </div>
+
+      {trucks.length > 0 && <FleetChartsSection trucks={trucks} />}
+
+      <div>
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <Truck className="h-5 w-5" />
+          Caminhões ({trucks.length})
+        </h2>
+        
+        {trucks.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {trucks.map((truck) => (
+              <TruckHealthCard
+                key={truck.truckId}
+                truck={truck}
+                onAnalyze={handleAnalyze}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Truck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum caminhão cadastrado</h3>
+              <p className="text-muted-foreground">
+                Cadastre caminhões para ver a análise de saúde da frota.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
