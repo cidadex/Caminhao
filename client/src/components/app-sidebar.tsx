@@ -72,6 +72,11 @@ const menuItems = [
     url: "/rotas",
     icon: MapPin,
   },
+  {
+    title: "Motoristas",
+    url: "/motoristas",
+    icon: User,
+  },
 ];
 
 const financialItems = [

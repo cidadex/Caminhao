@@ -17,10 +17,22 @@ export const users = pgTable("users", {
 export const drivers = pgTable("drivers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  birthDate: timestamp("birth_date"),
   cpf: text("cpf").unique(),
   cnh: text("cnh"),
   cnhExpiry: timestamp("cnh_expiry"),
   phone: text("phone"),
+  cep: text("cep"),
+  street: text("street"),
+  number: text("number"),
+  complement: text("complement"),
+  neighborhood: text("neighborhood"),
+  city: text("city"),
+  state: text("state"),
+  emergencyContactName: text("emergency_contact_name"),
+  emergencyContactPhone: text("emergency_contact_phone"),
+  emergencyContactRelation: text("emergency_contact_relation"),
+  healthInsurance: text("health_insurance"),
   status: text("status").notNull().default("active"),
 });
 

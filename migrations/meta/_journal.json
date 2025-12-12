@@ -8,6 +8,13 @@
       "when": 1765494654255,
       "tag": "0000_awesome_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765499206460,
+      "tag": "0001_add_driver_fields",
+      "breakpoints": true
     }
   ]
 }
