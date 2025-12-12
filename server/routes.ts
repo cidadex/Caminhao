@@ -166,7 +166,14 @@ export async function registerRoutes(
 
   app.post("/api/drivers", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
     try {
-      const validation = insertDriverSchema.safeParse(req.body);
+      const data = { ...req.body };
+      if (data.birthDate && typeof data.birthDate === "string") {
+        data.birthDate = new Date(data.birthDate);
+      }
+      if (data.cnhExpiry && typeof data.cnhExpiry === "string") {
+        data.cnhExpiry = new Date(data.cnhExpiry);
+      }
+      const validation = insertDriverSchema.safeParse(data);
       if (!validation.success) {
         return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
       }
@@ -184,7 +191,14 @@ export async function registerRoutes(
   app.patch("/api/drivers/:id", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const driver = await storage.updateDriver(id, req.body);
+      const data = { ...req.body };
+      if (data.birthDate && typeof data.birthDate === "string") {
+        data.birthDate = new Date(data.birthDate);
+      }
+      if (data.cnhExpiry && typeof data.cnhExpiry === "string") {
+        data.cnhExpiry = new Date(data.cnhExpiry);
+      }
+      const driver = await storage.updateDriver(id, data);
       if (!driver) {
         return res.status(404).json({ message: "Motorista não encontrado" });
       }
