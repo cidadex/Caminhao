@@ -115,6 +115,7 @@ function FineFormDialog({
     mutationFn: async (data: FineFormData) => {
       return apiRequest("POST", "/api/fines", {
         ...data,
+        value: String(data.value),
         truckId: data.truckId && data.truckId !== "" ? data.truckId : undefined,
         driverId: data.driverId && data.driverId !== "" ? data.driverId : undefined,
         date: data.date.toISOString(),
