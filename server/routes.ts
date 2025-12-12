@@ -939,6 +939,19 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.message });
       }
       const fine = await storage.createFine(parsed.data);
+      
+      // Criar automaticamente um registro em Contas a Pagar
+      await storage.createPayable({
+        userId: req.user?.id!,
+        date: new Date(req.body.date),
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined,
+        category: "multa",
+        description: `Multa: ${req.body.infraction}${req.body.location ? ` - ${req.body.location}` : ""}`,
+        value: req.body.value,
+        status: "pending",
+        notes: `Ref. Multa ID: ${fine.id}`,
+      });
+      
       res.status(201).json(fine);
     } catch (error) {
       console.error("Error creating fine:", error);
