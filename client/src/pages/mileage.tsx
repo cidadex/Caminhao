@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { Truck, MileageRecord } from "@shared/schema";
+import type { Truck, MileageRecord, Route as RouteType } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,12 +69,17 @@ function MileageFormDialog({
   open,
   onOpenChange,
   trucks,
+  routes,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trucks: Truck[];
+  routes: RouteType[];
 }) {
   const { toast } = useToast();
+  const [routeMode, setRouteMode] = useState<"select" | "manual">("select");
+  const [selectedRouteId, setSelectedRouteId] = useState<string>("");
+  const activeRoutes = routes.filter((r) => r.status === "active");
 
   const form = useForm<MileageFormData>({
     resolver: zodResolver(mileageFormSchema),
@@ -87,6 +92,36 @@ function MileageFormDialog({
       date: new Date(),
     },
   });
+
+  const resetDialog = () => {
+    form.reset();
+    setRouteMode(activeRoutes.length > 0 ? "select" : "manual");
+    setSelectedRouteId("");
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      resetDialog();
+    } else {
+      setRouteMode(activeRoutes.length > 0 ? "select" : "manual");
+      setSelectedRouteId("");
+    }
+    onOpenChange(newOpen);
+  };
+
+  const handleRouteSelect = (routeId: string) => {
+    if (routeId === "__manual__") {
+      setRouteMode("manual");
+      setSelectedRouteId("");
+      form.setValue("route", "");
+    } else {
+      setSelectedRouteId(routeId);
+      const selectedRoute = routes.find((r) => r.id === routeId);
+      if (selectedRoute) {
+        form.setValue("route", `${selectedRoute.origin} - ${selectedRoute.destination}`);
+      }
+    }
+  };
 
   const selectedTruck = trucks.find((t) => t.id === form.watch("truckId"));
   const kmInitial = form.watch("kmInitial");
@@ -111,8 +146,8 @@ function MileageFormDialog({
         title: "Registro salvo!",
         description: "O registro de quilometragem foi salvo com sucesso.",
       });
+      resetDialog();
       onOpenChange(false);
-      form.reset();
     },
     onError: (error: Error) => {
       toast({
@@ -135,7 +170,7 @@ function MileageFormDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl">Novo Registro de KM</DialogTitle>
@@ -267,9 +302,60 @@ function MileageFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cidade/Rota</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: São Paulo - Rio de Janeiro" className="h-11" data-testid="input-route" {...field} />
-                  </FormControl>
+                  {routeMode === "select" && activeRoutes.length > 0 ? (
+                    <div className="space-y-2">
+                      <Select value={selectedRouteId} onValueChange={handleRouteSelect}>
+                        <FormControl>
+                          <SelectTrigger className="h-11" data-testid="select-route">
+                            <SelectValue placeholder="Selecione uma rota cadastrada" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {activeRoutes.map((route) => (
+                            <SelectItem key={route.id} value={route.id}>
+                              {route.origin} → {route.destination}
+                              {route.distance && ` (${Number(route.distance)} km)`}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__manual__">
+                            Digitar rota manualmente...
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {field.value && (
+                        <p className="text-sm text-muted-foreground">
+                          Rota selecionada: {field.value}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <FormControl>
+                        <Input 
+                          placeholder="Ex: São Paulo - Rio de Janeiro" 
+                          className="h-11" 
+                          data-testid="input-route" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      {activeRoutes.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setRouteMode("select");
+                            setSelectedRouteId("");
+                            form.setValue("route", "");
+                          }}
+                          className="text-xs"
+                          data-testid="button-show-routes"
+                        >
+                          Ver rotas cadastradas
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -293,7 +379,7 @@ function MileageFormDialog({
             )}
 
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={mutation.isPending} data-testid="button-save-mileage">
@@ -342,6 +428,10 @@ export default function MileagePage() {
 
   const { data: trucks, isLoading: trucksLoading } = useQuery<Truck[]>({
     queryKey: ["/api/trucks"],
+  });
+
+  const { data: routes } = useQuery<RouteType[]>({
+    queryKey: ["/api/routes"],
   });
 
   if (recordsLoading || trucksLoading) {
@@ -578,6 +668,7 @@ export default function MileagePage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         trucks={trucks || []}
+        routes={routes || []}
       />
     </div>
   );
