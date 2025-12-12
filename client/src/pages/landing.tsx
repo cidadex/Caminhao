@@ -24,28 +24,26 @@ import {
   ArrowRight
 } from "lucide-react";
 
-import screenshot1 from "@assets/Screenshot_11-12-2025_201046_29cfa244-559c-410b-876c-a69000e2_1765499979208.jpeg";
-import screenshot2 from "@assets/Screenshot_11-12-2025_213658_29cfa244-559c-410b-876c-a69000e2_1765499979208.jpeg";
-import screenshot3 from "@assets/Screenshot_11-12-2025_213713_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
-import screenshot4 from "@assets/Screenshot_11-12-2025_213730_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
-import screenshot5 from "@assets/Screenshot_11-12-2025_21387_29cfa244-559c-410b-876c-a69000e25_1765499979207.jpeg";
-import screenshot6 from "@assets/Screenshot_11-12-2025_213821_29cfa244-559c-410b-876c-a69000e2_1765499979206.jpeg";
-import screenshot7 from "@assets/Screenshot_11-12-2025_213836_29cfa244-559c-410b-876c-a69000e2_1765499979206.jpeg";
-import screenshot8 from "@assets/Screenshot_11-12-2025_213849_29cfa244-559c-410b-876c-a69000e2_1765499979205.jpeg";
-import screenshot9 from "@assets/Screenshot_11-12-2025_213859_29cfa244-559c-410b-876c-a69000e2_1765499979204.jpeg";
-import screenshot10 from "@assets/Screenshot_11-12-2025_213914_29cfa244-559c-410b-876c-a69000e2_1765499979203.jpeg";
+import screenshotDashboard from "@assets/Screenshot_11-12-2025_213658_29cfa244-559c-410b-876c-a69000e2_1765499979208.jpeg";
+import screenshotCaminhoes from "@assets/Screenshot_11-12-2025_213713_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
+import screenshotSaudeFrota from "@assets/Screenshot_11-12-2025_213730_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
+import screenshotDiagnosticoIA from "@assets/Screenshot_11-12-2025_21387_29cfa244-559c-410b-876c-a69000e25_1765499979207.jpeg";
+import screenshotQuilometragem from "@assets/Screenshot_11-12-2025_213821_29cfa244-559c-410b-876c-a69000e2_1765499979206.jpeg";
+import screenshotManutencoes from "@assets/Screenshot_11-12-2025_213836_29cfa244-559c-410b-876c-a69000e2_1765499979206.jpeg";
+import screenshotCombustivel from "@assets/Screenshot_11-12-2025_213849_29cfa244-559c-410b-876c-a69000e2_1765499979205.jpeg";
+import screenshotGastosExtras from "@assets/Screenshot_11-12-2025_213859_29cfa244-559c-410b-876c-a69000e2_1765499979204.jpeg";
+import screenshotFinanceiro from "@assets/Screenshot_11-12-2025_213914_29cfa244-559c-410b-876c-a69000e2_1765499979203.jpeg";
 
 const screenshots = [
-  { src: screenshot1, title: "Dashboard - Ranking de Lucratividade", description: "Visualize o desempenho de cada caminhão em tempo real" },
-  { src: screenshot2, title: "Gestão de Caminhões", description: "Cadastre e gerencie toda sua frota em um só lugar" },
-  { src: screenshot3, title: "Saúde da Frota com IA", description: "Análise inteligente com score de saúde por veículo" },
-  { src: screenshot4, title: "Diagnóstico Detalhado IA", description: "Relatório completo gerado por inteligência artificial" },
-  { src: screenshot5, title: "Previsão de Custos IA", description: "A IA prevê manutenções e custos futuros" },
-  { src: screenshot6, title: "Registro de Quilometragem", description: "Controle rotas, KM e faturamento por viagem" },
-  { src: screenshot7, title: "Controle de Manutenções", description: "Registre todas as manutenções com comprovantes" },
-  { src: screenshot8, title: "Gestão de Combustível", description: "Acompanhe consumo, custo por litro e postos" },
-  { src: screenshot9, title: "Gastos Extras", description: "Controle despesas adicionais por categoria" },
-  { src: screenshot10, title: "Resumo Financeiro", description: "Visão consolidada de receitas, despesas e lucro" },
+  { src: screenshotDashboard, title: "Dashboard - Ranking de Lucratividade", description: "Compare o faturamento de cada caminhão e veja qual gera mais lucro" },
+  { src: screenshotCaminhoes, title: "Gestão de Caminhões", description: "Cards visuais com status, quilometragem e motorista de cada veículo" },
+  { src: screenshotSaudeFrota, title: "Saúde da Frota com IA", description: "Score de saúde 0-100 para cada caminhão com gráficos de desempenho" },
+  { src: screenshotDiagnosticoIA, title: "Diagnóstico Completo com IA", description: "Análise detalhada gerada pela IA com previsão de custos e alertas" },
+  { src: screenshotQuilometragem, title: "Registro de Quilometragem", description: "Controle de viagens com origem, destino, KM percorrido e valor recebido" },
+  { src: screenshotManutencoes, title: "Controle de Manutenções", description: "Histórico de manutenções por tipo com valores e comprovantes anexados" },
+  { src: screenshotCombustivel, title: "Gestão de Combustível", description: "Registro de abastecimentos com litros, preço por litro, posto e pagamento" },
+  { src: screenshotGastosExtras, title: "Gastos Extras", description: "Controle de despesas adicionais categorizadas por tipo e caminhão" },
+  { src: screenshotFinanceiro, title: "Resumo Financeiro", description: "Visão completa de entradas, saídas e lucro líquido do período" },
 ];
 
 const features = [
@@ -93,16 +91,19 @@ export default function LandingPage() {
         <div className="container relative mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center">
             <Badge variant="secondary" className="mb-4">
-              <Brain className="mr-1 h-3 w-3" />
-              Powered by GPT-4o
+              <Zap className="mr-1 h-3 w-3" />
+              Simples e Poderoso
             </Badge>
+            <p className="mb-4 text-lg text-muted-foreground">
+              Cansado de sistemas complicados?
+            </p>
             <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Gestão de Frota com{" "}
-              <span className="text-primary">Inteligência Artificial</span>
+              Gestão de Frota{" "}
+              <span className="text-primary">Simples e Inteligente</span>
             </h1>
             <p className="mb-8 text-lg text-muted-foreground sm:text-xl">
-              O sistema mais completo para transportadoras. Controle sua frota, preveja manutenções 
-              e maximize seus lucros com diagnósticos inteligentes gerados por IA.
+              Sistema fácil de usar com diagnósticos automáticos por IA. 
+              Controle sua frota em minutos, não em horas. Sem complicação.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <a href="#precos">
@@ -111,11 +112,25 @@ export default function LandingPage() {
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
               </a>
-              <a href="#funcionalidades">
+              <a href="#telas">
                 <Button size="lg" variant="outline" data-testid="button-conhecer">
-                  Conhecer Sistema
+                  Ver o Sistema
                 </Button>
               </a>
+            </div>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-primary" />
+                <span>Sem limite de caminhões</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-primary" />
+                <span>IA inclusa</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-primary" />
+                <span>Fácil de usar</span>
+              </div>
             </div>
           </div>
         </div>
@@ -125,10 +140,10 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
-              Tudo que você precisa para gerenciar sua frota
+              Completo, mas sem complicação
             </h2>
             <p className="text-muted-foreground">
-              Sistema completo com todas as funcionalidades que uma transportadora precisa
+              Todas as ferramentas que você precisa em um sistema fácil de usar
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -226,31 +241,35 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="py-16 sm:py-24">
+      <section id="telas" className="py-16 sm:py-24">
         <div className="container mx-auto px-4">
           <div className="mx-auto mb-12 max-w-2xl text-center">
+            <Badge variant="secondary" className="mb-4">
+              <Zap className="mr-1 h-3 w-3" />
+              Interface Intuitiva
+            </Badge>
             <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
-              Conheça as Telas do Sistema
+              Veja como é simples usar
             </h2>
             <p className="text-muted-foreground">
-              Interface moderna, intuitiva e completa para gerenciar toda sua operação
+              Telas limpas e objetivas. Você aprende em minutos, não em dias.
             </p>
           </div>
           
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 lg:grid-cols-2">
             {screenshots.map((screenshot, index) => (
               <Card key={index} className="group overflow-visible hover-elevate" data-testid={`card-screenshot-${index}`}>
-                <div className="relative aspect-video overflow-hidden rounded-t-lg">
+                <div className="relative aspect-video overflow-hidden rounded-t-lg border-b">
                   <img 
                     src={screenshot.src} 
                     alt={screenshot.title}
-                    className="h-full w-full object-cover object-left-top transition-transform duration-300 group-hover:scale-105"
+                    className="h-full w-full object-cover object-left-top transition-transform duration-300 group-hover:scale-[1.02]"
                     data-testid={`img-screenshot-${index}`}
                   />
                 </div>
                 <CardContent className="pt-4">
-                  <h3 className="mb-1 font-semibold" data-testid={`text-screenshot-title-${index}`}>{screenshot.title}</h3>
-                  <p className="text-sm text-muted-foreground">{screenshot.description}</p>
+                  <h3 className="mb-1 text-lg font-semibold" data-testid={`text-screenshot-title-${index}`}>{screenshot.title}</h3>
+                  <p className="text-muted-foreground">{screenshot.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -380,11 +399,11 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
-              Comece a economizar hoje
+              Simplifique sua gestão hoje
             </h2>
             <p className="mb-8 text-lg text-muted-foreground">
-              Empresas que usam o TruckFlow economizam em média 23% com manutenções 
-              ao identificar problemas antes que se tornem críticos.
+              Chega de planilhas e sistemas complicados. Com o TruckFlow você gerencia 
+              sua frota em minutos e ainda economiza com a previsão de manutenções da IA.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <a href="#precos">
@@ -395,7 +414,7 @@ export default function LandingPage() {
               </a>
               <Link href="/login">
                 <Button size="lg" variant="outline" data-testid="button-demo">
-                  Acessar Demonstração
+                  Testar Demonstração
                 </Button>
               </Link>
             </div>
