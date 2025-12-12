@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
 import TrucksPage from "@/pages/trucks";
@@ -101,6 +102,9 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/site">
+        <LandingPage />
+      </Route>
       <Route path="/login">
         {user ? <Redirect to="/" /> : <LoginPage />}
       </Route>
