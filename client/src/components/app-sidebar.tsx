@@ -29,6 +29,7 @@ import {
   Calculator,
   HeartPulse,
   MapPin,
+  AlertTriangle,
 } from "lucide-react";
 
 const menuItems = [
@@ -76,6 +77,11 @@ const menuItems = [
     title: "Motoristas",
     url: "/motoristas",
     icon: User,
+  },
+  {
+    title: "Multas",
+    url: "/multas",
+    icon: AlertTriangle,
   },
 ];
 

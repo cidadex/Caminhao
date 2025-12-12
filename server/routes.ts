@@ -16,6 +16,7 @@ import {
   insertFuelExpenseSchema,
   insertExtraExpenseSchema,
   insertRouteSchema,
+  insertFineSchema,
   loginSchema,
   trucks,
   drivers,
@@ -912,6 +913,61 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Erro ao excluir rota" });
+    }
+  });
+
+  // Fines (Multas) routes
+  app.get("/api/fines", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const fines = await storage.getFines();
+      res.json(fines);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar multas" });
+    }
+  });
+
+  app.post("/api/fines", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const data = {
+        ...req.body,
+        userId: req.user?.id,
+        date: new Date(req.body.date),
+        dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined,
+      };
+      const parsed = insertFineSchema.safeParse(data);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.message });
+      }
+      const fine = await storage.createFine(parsed.data);
+      res.status(201).json(fine);
+    } catch (error) {
+      console.error("Error creating fine:", error);
+      res.status(500).json({ message: "Erro ao criar multa" });
+    }
+  });
+
+  app.patch("/api/fines/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const updateData = { ...req.body };
+      if (updateData.date) updateData.date = new Date(updateData.date);
+      if (updateData.dueDate) updateData.dueDate = new Date(updateData.dueDate);
+      if (updateData.paidAt) updateData.paidAt = new Date(updateData.paidAt);
+      
+      const fine = await storage.updateFine(req.params.id, updateData);
+      if (!fine) return res.status(404).json({ message: "Multa não encontrada" });
+      res.json(fine);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar multa" });
+    }
+  });
+
+  app.delete("/api/fines/:id", authMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const deleted = await storage.deleteFine(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Multa não encontrada" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir multa" });
     }
   });
 

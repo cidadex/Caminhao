@@ -141,8 +141,11 @@ export default function ReportsPage() {
   if (endDate) queryParams.set("endDate", endDate.toISOString());
   if (selectedTruck !== "all") queryParams.set("truckId", selectedTruck);
 
+  const queryString = queryParams.toString();
+  const reportUrl = queryString ? `/api/reports?${queryString}` : "/api/reports";
+
   const { data: reportData, isLoading: reportLoading } = useQuery<ReportResponse>({
-    queryKey: ["/api/reports", queryParams.toString()],
+    queryKey: [reportUrl],
   });
 
   const handleExport = async (formatType: "pdf" | "excel" | "csv") => {

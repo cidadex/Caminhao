@@ -9,6 +9,7 @@ import {
   payables,
   receivables,
   routes,
+  fines,
   type User,
   type InsertUser,
   type Driver,
@@ -30,6 +31,9 @@ import {
   type InsertReceivable,
   type Route,
   type InsertRoute,
+  type Fine,
+  type InsertFine,
+  type FineWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, isNull } from "drizzle-orm";
@@ -84,6 +88,12 @@ export interface IStorage {
   createRoute(route: InsertRoute): Promise<Route>;
   updateRoute(id: string, route: Partial<InsertRoute>): Promise<Route | undefined>;
   deleteRoute(id: string): Promise<boolean>;
+
+  getFines(): Promise<FineWithDetails[]>;
+  getFine(id: string): Promise<Fine | undefined>;
+  createFine(fine: InsertFine): Promise<Fine>;
+  updateFine(id: string, fine: Partial<InsertFine>): Promise<Fine | undefined>;
+  deleteFine(id: string): Promise<boolean>;
 
   getDashboardData(): Promise<{
     totalGrossRevenue: number;
@@ -598,6 +608,42 @@ export class DatabaseStorage implements IStorage {
     };
 
     return { data, totals };
+  }
+
+  async getFines(): Promise<FineWithDetails[]> {
+    const allFines = await db.select().from(fines).orderBy(desc(fines.date));
+    const allTrucks = await this.getTrucks();
+    const allDrivers = await this.getDrivers();
+    
+    return allFines.map(fine => ({
+      ...fine,
+      truck: fine.truckId ? allTrucks.find(t => t.id === fine.truckId) : undefined,
+      driver: fine.driverId ? allDrivers.find(d => d.id === fine.driverId) : undefined,
+    }));
+  }
+
+  async getFine(id: string): Promise<Fine | undefined> {
+    const [fine] = await db.select().from(fines).where(eq(fines.id, id));
+    return fine || undefined;
+  }
+
+  async createFine(fine: InsertFine): Promise<Fine> {
+    const [newFine] = await db.insert(fines).values(fine).returning();
+    return newFine;
+  }
+
+  async updateFine(id: string, fineData: Partial<InsertFine>): Promise<Fine | undefined> {
+    const [updated] = await db
+      .update(fines)
+      .set(fineData)
+      .where(eq(fines.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteFine(id: string): Promise<boolean> {
+    const result = await db.delete(fines).where(eq(fines.id, id)).returning();
+    return result.length > 0;
   }
 }
 

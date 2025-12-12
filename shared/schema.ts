@@ -128,6 +128,23 @@ export const routes = pgTable("routes", {
   status: text("status").notNull().default("active"),
 });
 
+// Multas (Traffic Fines)
+export const fines = pgTable("fines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  truckId: varchar("truck_id").references(() => trucks.id, { onDelete: "set null" }),
+  driverId: varchar("driver_id").references(() => drivers.id, { onDelete: "set null" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(),
+  infraction: text("infraction").notNull(),
+  value: decimal("value", { precision: 12, scale: 2 }).notNull(),
+  location: text("location"),
+  autoNumber: text("auto_number"),
+  dueDate: timestamp("due_date"),
+  paidAt: timestamp("paid_at"),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+});
+
 // Contas a Receber (Receivables) - entradas manuais
 export const receivables = pgTable("receivables", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -210,6 +227,21 @@ export const extraExpensesRelations = relations(extraExpenses, ({ one }) => ({
   }),
 }));
 
+export const finesRelations = relations(fines, ({ one }) => ({
+  truck: one(trucks, {
+    fields: [fines.truckId],
+    references: [trucks.id],
+  }),
+  driver: one(drivers, {
+    fields: [fines.driverId],
+    references: [drivers.id],
+  }),
+  user: one(users, {
+    fields: [fines.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertDriverSchema = createInsertSchema(drivers).omit({ id: true });
@@ -221,6 +253,7 @@ export const insertExtraExpenseSchema = createInsertSchema(extraExpenses).omit({
 export const insertPayableSchema = createInsertSchema(payables).omit({ id: true });
 export const insertReceivableSchema = createInsertSchema(receivables).omit({ id: true });
 export const insertRouteSchema = createInsertSchema(routes).omit({ id: true });
+export const insertFineSchema = createInsertSchema(fines).omit({ id: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -253,6 +286,10 @@ export type Receivable = typeof receivables.$inferSelect;
 
 export type InsertRoute = z.infer<typeof insertRouteSchema>;
 export type Route = typeof routes.$inferSelect;
+
+export type InsertFine = z.infer<typeof insertFineSchema>;
+export type Fine = typeof fines.$inferSelect;
+export type FineWithDetails = Fine & { truck?: Truck; driver?: Driver };
 
 // Login schema
 export const loginSchema = z.object({

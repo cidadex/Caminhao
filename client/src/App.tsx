@@ -27,6 +27,7 @@ import FinancialSummaryPage from "@/pages/financial-summary";
 import FleetHealthPage from "@/pages/fleet-health";
 import RoutesPage from "@/pages/routes";
 import DriversPage from "@/pages/drivers";
+import FinesPage from "@/pages/fines";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: () => JSX.Element; adminOnly?: boolean }) {
@@ -191,6 +192,11 @@ function Router() {
       <Route path="/motoristas">
         <AuthenticatedLayout>
           <ProtectedRoute component={DriversPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/multas">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={FinesPage} />
         </AuthenticatedLayout>
       </Route>
       <Route>
