@@ -28,6 +28,7 @@ import FleetHealthPage from "@/pages/fleet-health";
 import RoutesPage from "@/pages/routes";
 import DriversPage from "@/pages/drivers";
 import FinesPage from "@/pages/fines";
+import GestaoTruckPage from "@/pages/gestaotruck";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: () => JSX.Element; adminOnly?: boolean }) {
@@ -105,6 +106,9 @@ function Router() {
     <Switch>
       <Route path="/site">
         <LandingPage />
+      </Route>
+      <Route path="/gestaotruck">
+        <GestaoTruckPage />
       </Route>
       <Route path="/login">
         {user ? <Redirect to="/" /> : <LoginPage />}
