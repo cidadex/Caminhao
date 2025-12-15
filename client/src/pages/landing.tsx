@@ -301,7 +301,7 @@ export default function LandingPage() {
               <CardContent className="pb-4">
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold">R$ 5.800</span>
+                    <span className="text-4xl font-bold">R$ 3.800</span>
                     <span className="text-muted-foreground">/único</span>
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -313,6 +313,7 @@ export default function LandingPage() {
                 <ul className="space-y-3">
                   {[
                     "Licença permanente do sistema",
+                    "Personalização inclusa",
                     "Implantação e treinamento inclusos",
                     "Atualizações de segurança",
                     "Suporte técnico mensal",
