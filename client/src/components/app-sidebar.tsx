@@ -10,6 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -140,6 +141,13 @@ const reportItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout, isAdmin } = useAuth();
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const filteredReportItems = reportItems.filter(
     (item) => !item.adminOnly || isAdmin
@@ -183,7 +191,7 @@ export function AppSidebar() {
                       asChild
                       className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
                     >
-                      <Link href={item.url} data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}>
+                      <Link href={item.url} onClick={handleLinkClick} data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
@@ -209,7 +217,7 @@ export function AppSidebar() {
                       asChild
                       className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
                     >
-                      <Link href={item.url} data-testid={`nav-${item.url.replace("/", "")}`}>
+                      <Link href={item.url} onClick={handleLinkClick} data-testid={`nav-${item.url.replace("/", "")}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
@@ -235,7 +243,7 @@ export function AppSidebar() {
                       asChild
                       className={isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
                     >
-                      <Link href={item.url} data-testid={`nav-report-${item.url.replace("/relatorios/", "").replace("/relatorios", "geral")}`}>
+                      <Link href={item.url} onClick={handleLinkClick} data-testid={`nav-report-${item.url.replace("/relatorios/", "").replace("/relatorios", "geral")}`}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </Link>
