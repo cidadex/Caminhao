@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, VariantProps } from "class-variance-authority"
-import { PanelLeftIcon } from "lucide-react"
+import { ChevronDown, PanelLeftIcon } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -151,6 +151,46 @@ function SidebarProvider({
   )
 }
 
+function MobileScrollContainer({ children }: { children: React.ReactNode }) {
+  const [showScrollIndicator, setShowScrollIndicator] = React.useState(true)
+  const scrollRef = React.useRef<HTMLDivElement>(null)
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+      const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50
+      setShowScrollIndicator(!isNearBottom)
+    }
+  }
+
+  React.useEffect(() => {
+    const el = scrollRef.current
+    if (el) {
+      handleScroll()
+    }
+  }, [])
+
+  return (
+    <div className="relative flex h-full w-full flex-col">
+      <div 
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto"
+      >
+        {children}
+      </div>
+      {showScrollIndicator && (
+        <div className="absolute bottom-0 left-0 right-0 flex justify-center py-2 bg-gradient-to-t from-sidebar via-sidebar to-transparent pointer-events-none">
+          <div className="flex flex-col items-center text-muted-foreground animate-bounce">
+            <ChevronDown className="h-5 w-5" />
+            <span className="text-xs">Mais itens</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Sidebar({
   side = "left",
   variant = "sidebar",
@@ -199,7 +239,7 @@ function Sidebar({
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <MobileScrollContainer>{children}</MobileScrollContainer>
         </SheetContent>
       </Sheet>
     )
