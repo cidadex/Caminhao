@@ -258,14 +258,14 @@ function DayCell({
   return (
     <div
       className={cn(
-        "min-h-[100px] border p-1 transition-colors",
+        "min-h-[80px] md:min-h-[100px] border p-1 transition-colors",
         isCurrentMonth ? "bg-card" : "bg-muted/30",
         isToday && "ring-2 ring-primary"
       )}
     >
       <div className="flex items-center justify-between mb-1">
         <span className={cn(
-          "text-sm font-medium",
+          "text-xs md:text-sm font-medium",
           !isCurrentMonth && "text-muted-foreground",
           isToday && "text-primary font-bold"
         )}>
@@ -275,7 +275,7 @@ function DayCell({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-5 w-5 md:h-6 md:w-6"
             onClick={onAddClick}
             data-testid={`button-add-status-${format(date, "yyyy-MM-dd")}`}
           >
@@ -283,7 +283,7 @@ function DayCell({
           </Button>
         )}
       </div>
-      <div className="space-y-0.5 overflow-y-auto max-h-[70px]">
+      <div className="space-y-0.5 overflow-y-auto max-h-[50px] md:max-h-[70px]">
         {statuses.map((status) => {
           const config = statusConfig[status.status as StatusType];
           return (
@@ -291,7 +291,7 @@ function DayCell({
               key={status.id}
               onClick={() => onStatusClick(status)}
               className={cn(
-                "w-full text-left text-xs px-1 py-0.5 rounded truncate flex items-center gap-1",
+                "w-full text-left text-[10px] md:text-xs px-1 py-0.5 rounded truncate flex items-center gap-1",
                 config?.color,
                 "text-white hover:opacity-80 transition-opacity"
               )}
@@ -302,6 +302,76 @@ function DayCell({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function MobileDayRow({
+  date,
+  statuses,
+  onAddClick,
+  onStatusClick,
+}: {
+  date: Date;
+  statuses: TruckDailyStatusWithTruck[];
+  onAddClick: () => void;
+  onStatusClick: (status: TruckDailyStatusWithTruck) => void;
+}) {
+  const isToday = isSameDay(date, new Date());
+  
+  return (
+    <div
+      className={cn(
+        "border-b p-3 transition-colors",
+        isToday && "bg-primary/5"
+      )}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "text-sm font-medium",
+            isToday && "text-primary font-bold"
+          )}>
+            {format(date, "EEEE, dd", { locale: ptBR })}
+          </span>
+          {isToday && (
+            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">Hoje</span>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onAddClick}
+          data-testid={`button-add-status-mobile-${format(date, "yyyy-MM-dd")}`}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {statuses.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {statuses.map((status) => {
+            const config = statusConfig[status.status as StatusType];
+            return (
+              <button
+                key={status.id}
+                onClick={() => onStatusClick(status)}
+                className={cn(
+                  "text-xs px-2 py-1 rounded flex items-center gap-1",
+                  config?.color,
+                  "text-white hover:opacity-80 transition-opacity"
+                )}
+                data-testid={`status-item-mobile-${status.id}`}
+              >
+                <span>{status.truck?.number || "?"}</span>
+                <span className="opacity-75">({config?.label})</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Nenhum status registrado</p>
+      )}
     </div>
   );
 }
@@ -441,10 +511,12 @@ export default function CalendarPage() {
     );
   }
 
+  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Calendário de Status</h1>
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl md:text-2xl font-bold">Calendário de Status</h1>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -454,7 +526,7 @@ export default function CalendarPage() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-lg font-medium min-w-[150px] text-center">
+          <span className="text-base md:text-lg font-medium min-w-[130px] md:min-w-[150px] text-center capitalize">
             {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
           </span>
           <Button
@@ -468,24 +540,24 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="flex gap-4 flex-wrap">
+      <div className="flex gap-2 md:gap-4 flex-wrap">
         {(Object.entries(statusConfig) as [StatusType, typeof statusConfig.ativo][]).map(([key, config]) => {
           const Icon = config.icon;
           return (
-            <div key={key} className="flex items-center gap-2">
-              <div className={cn("w-4 h-4 rounded", config.color)} />
-              <Icon className={cn("h-4 w-4", config.textColor)} />
-              <span className="text-sm">{config.label}</span>
+            <div key={key} className="flex items-center gap-1 md:gap-2">
+              <div className={cn("w-3 h-3 md:w-4 md:h-4 rounded", config.color)} />
+              <Icon className={cn("h-3 w-3 md:h-4 md:w-4", config.textColor)} />
+              <span className="text-xs md:text-sm">{config.label}</span>
             </div>
           );
         })}
       </div>
 
-      <Card className="overflow-x-auto">
-        <CardContent className="p-0 min-w-[700px]">
+      <Card className="hidden md:block">
+        <CardContent className="p-0">
           <div className="grid grid-cols-7">
             {weekDays.map((day) => (
-              <div key={day} className="p-2 text-center font-medium border-b bg-muted">
+              <div key={day} className="p-2 text-center font-medium border-b bg-muted text-sm">
                 {day}
               </div>
             ))}
@@ -506,6 +578,23 @@ export default function CalendarPage() {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="md:hidden">
+        <CardContent className="p-0">
+          {monthDays.map((day) => {
+            const dayStatuses = getStatusesForDay(day);
+            return (
+              <MobileDayRow
+                key={day.toISOString()}
+                date={day}
+                statuses={dayStatuses}
+                onAddClick={() => handleAddClick(day)}
+                onStatusClick={handleStatusClick}
+              />
+            );
+          })}
         </CardContent>
       </Card>
 

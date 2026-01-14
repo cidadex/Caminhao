@@ -3,7 +3,6 @@ import { useAuth } from "@/lib/auth";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -247,35 +246,41 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground px-4">
+            Usuário
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <div className="px-4 py-2">
+              <div className="flex items-center gap-3 mb-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                    {user ? getInitials(user.name) : <User className="h-4 w-4" />}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-sidebar-foreground truncate">
+                    {user?.name || "Usuário"}
+                  </p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {user?.role === "admin" ? "Administrador" : "Usuário"}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={logout}
+                data-testid="button-logout"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
+              </Button>
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-              {user ? getInitials(user.name) : <User className="h-4 w-4" />}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">
-              {user?.name || "Usuário"}
-            </p>
-            <p className="text-xs text-muted-foreground capitalize">
-              {user?.role === "admin" ? "Administrador" : "Usuário"}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2"
-          onClick={logout}
-          data-testid="button-logout"
-        >
-          <LogOut className="h-4 w-4" />
-          Sair
-        </Button>
-      </SidebarFooter>
     </Sidebar>
   );
 }
