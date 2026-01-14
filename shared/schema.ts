@@ -160,6 +160,16 @@ export const receivables = pgTable("receivables", {
   notes: text("notes"),
 });
 
+// Truck Daily Status (Status diário dos caminhões - Calendário)
+export const truckDailyStatus = pgTable("truck_daily_status", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  truckId: varchar("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  date: timestamp("date").notNull(),
+  status: text("status").notNull().default("ativo"),
+  location: text("location"),
+  notes: text("notes"),
+});
+
 // Relations - defined AFTER all tables
 export const usersRelations = relations(users, ({ many }) => ({
   mileageRecords: many(mileageRecords),
@@ -181,6 +191,14 @@ export const trucksRelations = relations(trucks, ({ one, many }) => ({
   maintenances: many(maintenances),
   fuelExpenses: many(fuelExpenses),
   extraExpenses: many(extraExpenses),
+  dailyStatuses: many(truckDailyStatus),
+}));
+
+export const truckDailyStatusRelations = relations(truckDailyStatus, ({ one }) => ({
+  truck: one(trucks, {
+    fields: [truckDailyStatus.truckId],
+    references: [trucks.id],
+  }),
 }));
 
 export const mileageRecordsRelations = relations(mileageRecords, ({ one }) => ({
@@ -254,6 +272,7 @@ export const insertPayableSchema = createInsertSchema(payables).omit({ id: true 
 export const insertReceivableSchema = createInsertSchema(receivables).omit({ id: true });
 export const insertRouteSchema = createInsertSchema(routes).omit({ id: true });
 export const insertFineSchema = createInsertSchema(fines).omit({ id: true });
+export const insertTruckDailyStatusSchema = createInsertSchema(truckDailyStatus).omit({ id: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -290,6 +309,10 @@ export type Route = typeof routes.$inferSelect;
 export type InsertFine = z.infer<typeof insertFineSchema>;
 export type Fine = typeof fines.$inferSelect;
 export type FineWithDetails = Fine & { truck?: Truck; driver?: Driver };
+
+export type InsertTruckDailyStatus = z.infer<typeof insertTruckDailyStatusSchema>;
+export type TruckDailyStatus = typeof truckDailyStatus.$inferSelect;
+export type TruckDailyStatusWithTruck = TruckDailyStatus & { truck?: Truck };
 
 // Login schema
 export const loginSchema = z.object({

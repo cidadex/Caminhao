@@ -10,6 +10,7 @@ import {
   receivables,
   routes,
   fines,
+  truckDailyStatus,
   type User,
   type InsertUser,
   type Driver,
@@ -34,6 +35,9 @@ import {
   type Fine,
   type InsertFine,
   type FineWithDetails,
+  type TruckDailyStatus,
+  type InsertTruckDailyStatus,
+  type TruckDailyStatusWithTruck,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, isNull } from "drizzle-orm";
@@ -94,6 +98,13 @@ export interface IStorage {
   createFine(fine: InsertFine): Promise<Fine>;
   updateFine(id: string, fine: Partial<InsertFine>): Promise<Fine | undefined>;
   deleteFine(id: string): Promise<boolean>;
+
+  getTruckDailyStatuses(startDate: Date, endDate: Date): Promise<TruckDailyStatusWithTruck[]>;
+  getTruckDailyStatusesByDate(date: Date): Promise<TruckDailyStatusWithTruck[]>;
+  createTruckDailyStatus(status: InsertTruckDailyStatus): Promise<TruckDailyStatus>;
+  updateTruckDailyStatus(id: string, status: Partial<InsertTruckDailyStatus>): Promise<TruckDailyStatus | undefined>;
+  deleteTruckDailyStatus(id: string): Promise<boolean>;
+  upsertTruckDailyStatus(truckId: string, date: Date, status: string, location?: string, notes?: string): Promise<TruckDailyStatus>;
 
   getDashboardData(): Promise<{
     totalGrossRevenue: number;
@@ -644,6 +655,86 @@ export class DatabaseStorage implements IStorage {
   async deleteFine(id: string): Promise<boolean> {
     const result = await db.delete(fines).where(eq(fines.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getTruckDailyStatuses(startDate: Date, endDate: Date): Promise<TruckDailyStatusWithTruck[]> {
+    const allStatuses = await db
+      .select()
+      .from(truckDailyStatus)
+      .where(and(gte(truckDailyStatus.date, startDate), lte(truckDailyStatus.date, endDate)))
+      .orderBy(desc(truckDailyStatus.date));
+    const allTrucks = await this.getTrucks();
+    return allStatuses.map(status => ({
+      ...status,
+      truck: allTrucks.find(t => t.id === status.truckId),
+    }));
+  }
+
+  async getTruckDailyStatusesByDate(date: Date): Promise<TruckDailyStatusWithTruck[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    const allStatuses = await db
+      .select()
+      .from(truckDailyStatus)
+      .where(and(gte(truckDailyStatus.date, startOfDay), lte(truckDailyStatus.date, endOfDay)));
+    const allTrucks = await this.getTrucks();
+    return allStatuses.map(status => ({
+      ...status,
+      truck: allTrucks.find(t => t.id === status.truckId),
+    }));
+  }
+
+  async createTruckDailyStatus(status: InsertTruckDailyStatus): Promise<TruckDailyStatus> {
+    const [newStatus] = await db.insert(truckDailyStatus).values(status).returning();
+    return newStatus;
+  }
+
+  async updateTruckDailyStatus(id: string, statusData: Partial<InsertTruckDailyStatus>): Promise<TruckDailyStatus | undefined> {
+    const [updated] = await db
+      .update(truckDailyStatus)
+      .set(statusData)
+      .where(eq(truckDailyStatus.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteTruckDailyStatus(id: string): Promise<boolean> {
+    const result = await db.delete(truckDailyStatus).where(eq(truckDailyStatus.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async upsertTruckDailyStatus(truckId: string, date: Date, status: string, location?: string, notes?: string): Promise<TruckDailyStatus> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const [existing] = await db
+      .select()
+      .from(truckDailyStatus)
+      .where(and(
+        eq(truckDailyStatus.truckId, truckId),
+        gte(truckDailyStatus.date, startOfDay),
+        lte(truckDailyStatus.date, endOfDay)
+      ));
+
+    if (existing) {
+      const [updated] = await db
+        .update(truckDailyStatus)
+        .set({ status, location, notes })
+        .where(eq(truckDailyStatus.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [newStatus] = await db
+        .insert(truckDailyStatus)
+        .values({ truckId, date: startOfDay, status, location, notes })
+        .returning();
+      return newStatus;
+    }
   }
 }
 

@@ -30,6 +30,7 @@ import {
   HeartPulse,
   MapPin,
   AlertTriangle,
+  CalendarDays,
 } from "lucide-react";
 
 const menuItems = [
@@ -82,6 +83,11 @@ const menuItems = [
     title: "Multas",
     url: "/multas",
     icon: AlertTriangle,
+  },
+  {
+    title: "Calendário",
+    url: "/calendario",
+    icon: CalendarDays,
   },
 ];
 

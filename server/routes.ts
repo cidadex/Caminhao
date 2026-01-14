@@ -984,6 +984,79 @@ export async function registerRoutes(
     }
   });
 
+  // Truck Daily Status (Calendar) routes - no auth required
+  app.get("/api/truck-daily-status", async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate, date } = req.query;
+      
+      if (date) {
+        const statuses = await storage.getTruckDailyStatusesByDate(new Date(date as string));
+        return res.json(statuses);
+      }
+      
+      let start: Date;
+      let end: Date;
+      
+      if (startDate) {
+        start = new Date(startDate as string);
+      } else {
+        const now = new Date();
+        start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      }
+      
+      if (endDate) {
+        end = new Date(endDate as string);
+      } else {
+        const now = new Date();
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      }
+      
+      const statuses = await storage.getTruckDailyStatuses(start, end);
+      res.json(statuses);
+    } catch (error) {
+      console.error("Error fetching truck daily statuses:", error);
+      res.status(500).json({ message: "Erro ao buscar status diários" });
+    }
+  });
+
+  app.post("/api/truck-daily-status", async (req: Request, res: Response) => {
+    try {
+      const { truckId, date, status, location, notes } = req.body;
+      
+      if (!truckId || !date || !status) {
+        return res.status(400).json({ message: "Caminhão, data e status são obrigatórios" });
+      }
+      
+      const validStatuses = ["ativo", "manutencao", "pernoite", "parado"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Status inválido" });
+      }
+      
+      const result = await storage.upsertTruckDailyStatus(
+        truckId,
+        new Date(date),
+        status,
+        location,
+        notes
+      );
+      
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error creating/updating truck daily status:", error);
+      res.status(500).json({ message: "Erro ao salvar status diário" });
+    }
+  });
+
+  app.delete("/api/truck-daily-status/:id", async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deleteTruckDailyStatus(req.params.id);
+      if (!deleted) return res.status(404).json({ message: "Status não encontrado" });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir status" });
+    }
+  });
+
   // Financial Summary route
   app.get("/api/financial-summary", authMiddleware as any, async (req: AuthRequest, res: Response) => {
     try {

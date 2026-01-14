@@ -29,6 +29,7 @@ import RoutesPage from "@/pages/routes";
 import DriversPage from "@/pages/drivers";
 import FinesPage from "@/pages/fines";
 import GestaoTruckPage from "@/pages/gestaotruck";
+import CalendarPage from "@/pages/calendar";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: () => JSX.Element; adminOnly?: boolean }) {
@@ -201,6 +202,11 @@ function Router() {
       <Route path="/multas">
         <AuthenticatedLayout>
           <ProtectedRoute component={FinesPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/calendario">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={CalendarPage} />
         </AuthenticatedLayout>
       </Route>
       <Route>
