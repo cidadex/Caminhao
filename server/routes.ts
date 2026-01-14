@@ -155,8 +155,7 @@ export async function registerRoutes(
     }
   });
 
-  // Drivers routes
-  app.get("/api/drivers", authMiddleware as any, async (_req: Request, res: Response) => {
+  app.get("/api/drivers", async (_req: Request, res: Response) => {
     try {
       const driversList = await storage.getDrivers();
       res.json(driversList);
@@ -166,7 +165,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/drivers", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
+  app.post("/api/drivers", async (req: Request, res: Response) => {
     try {
       const data = { ...req.body };
       if (data.birthDate && typeof data.birthDate === "string") {
@@ -190,7 +189,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/drivers/:id", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
+  app.patch("/api/drivers/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const data = { ...req.body };
@@ -211,7 +210,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/drivers/:id", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
+  app.delete("/api/drivers/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteDriver(id);
@@ -226,7 +225,7 @@ export async function registerRoutes(
   });
 
   // Fleet Health routes
-  app.get("/api/fleet-health", authMiddleware as any, async (_req: Request, res: Response) => {
+  app.get("/api/fleet-health", async (_req: Request, res: Response) => {
     try {
       const summary = await getFleetHealthSummary();
       res.json(summary);
@@ -236,7 +235,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/fleet-health/:truckId/diagnostic", authMiddleware as any, async (req: Request, res: Response) => {
+  app.get("/api/fleet-health/:truckId/diagnostic", async (req: Request, res: Response) => {
     try {
       const { truckId } = req.params;
       const diagnostic = await generateTruckDiagnostic(truckId);
