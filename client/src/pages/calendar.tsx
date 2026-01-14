@@ -113,7 +113,7 @@ function StatusFormDialog({
     mutation.mutate(data);
   };
 
-  const trucksWithStatus = existingStatuses.map(s => s.truckId);
+  const trucksWithStatus = existingStatuses.map(s => Number(s.truckId));
   const availableTrucks = trucks.filter(t => !trucksWithStatus.includes(t.id));
 
   return (
