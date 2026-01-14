@@ -113,7 +113,7 @@ function StatusFormDialog({
     mutation.mutate(data);
   };
 
-  const trucksWithStatus = existingStatuses.map(s => Number(s.truckId));
+  const trucksWithStatus = existingStatuses.map(s => s.truckId);
   const availableTrucks = trucks.filter(t => !trucksWithStatus.includes(t.id));
 
   return (
@@ -481,8 +481,8 @@ export default function CalendarPage() {
         })}
       </div>
 
-      <Card>
-        <CardContent className="p-0">
+      <Card className="overflow-x-auto">
+        <CardContent className="p-0 min-w-[700px]">
           <div className="grid grid-cols-7">
             {weekDays.map((day) => (
               <div key={day} className="p-2 text-center font-medium border-b bg-muted">
