@@ -24,6 +24,8 @@ import {
   User
 } from "lucide-react";
 
+import logoLight from "@/assets/logo-light.png";
+import logoDark from "@/assets/logo-dark.png";
 import screenshotDashboard from "@assets/Screenshot_11-12-2025_213658_29cfa244-559c-410b-876c-a69000e2_1765499979208.jpeg";
 import screenshotCaminhoes from "@assets/Screenshot_11-12-2025_213713_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
 import screenshotSaudeFrota from "@assets/Screenshot_11-12-2025_213730_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
@@ -72,10 +74,8 @@ export default function GestaoTruckPage() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary">
-              <Truck className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">GestaoTruck</span>
+            <img src={logoDark} alt="Seu Truck" className="h-8 dark:hidden" />
+            <img src={logoLight} alt="Seu Truck" className="h-8 hidden dark:block" />
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -357,7 +357,7 @@ export default function GestaoTruckPage() {
               Pare de perder dinheiro
             </h2>
             <p className="mb-8 text-lg text-muted-foreground">
-              Chega de anotação em caderno e conta de cabeça. Com o GestaoTruck você 
+              Chega de anotação em caderno e conta de cabeça. Com o Seu Truck você 
               sabe exatamente quanto está ganhando e quanto está gastando.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
@@ -384,7 +384,8 @@ export default function GestaoTruckPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
                 <Truck className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-bold">GestaoTruck</span>
+              <img src={logoDark} alt="Seu Truck" className="h-6 inline dark:hidden" />
+              <img src={logoLight} alt="Seu Truck" className="h-6 hidden dark:inline" />
             </div>
             <p className="text-sm text-muted-foreground">
               Sistema de Gestão para Caminhoneiros Autônomos

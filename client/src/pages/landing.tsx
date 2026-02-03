@@ -24,6 +24,8 @@ import {
   ArrowRight
 } from "lucide-react";
 
+import logoLight from "@/assets/logo-light.png";
+import logoDark from "@/assets/logo-dark.png";
 import screenshotDashboard from "@assets/Screenshot_11-12-2025_213658_29cfa244-559c-410b-876c-a69000e2_1765499979208.jpeg";
 import screenshotCaminhoes from "@assets/Screenshot_11-12-2025_213713_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
 import screenshotSaudeFrota from "@assets/Screenshot_11-12-2025_213730_29cfa244-559c-410b-876c-a69000e2_1765499979207.jpeg";
@@ -72,10 +74,8 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary">
-              <Truck className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">TruckFlow</span>
+            <img src={logoDark} alt="Seu Truck" className="h-8 dark:hidden" />
+            <img src={logoLight} alt="Seu Truck" className="h-8 hidden dark:block" />
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -403,7 +403,7 @@ export default function LandingPage() {
               Simplifique sua gestão hoje
             </h2>
             <p className="mb-8 text-lg text-muted-foreground">
-              Chega de planilhas e sistemas complicados. Com o TruckFlow você gerencia 
+              Chega de planilhas e sistemas complicados. Com o Seu Truck você gerencia 
               sua frota em minutos e ainda economiza com a previsão de manutenções da IA.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
@@ -430,7 +430,8 @@ export default function LandingPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
                 <Truck className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-bold">TruckFlow</span>
+              <img src={logoDark} alt="Seu Truck" className="h-6 inline dark:hidden" />
+              <img src={logoLight} alt="Seu Truck" className="h-6 hidden dark:inline" />
             </div>
             <p className="text-sm text-muted-foreground">
               Sistema de Gestão de Frotas com Inteligência Artificial

@@ -32,6 +32,8 @@ import {
   AlertTriangle,
   CalendarDays,
 } from "lucide-react";
+import logoLight from "@/assets/logo-light.png";
+import logoDark from "@/assets/logo-dark.png";
 
 const menuItems = [
   {
@@ -166,11 +168,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary">
-            <Truck className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img src={logoLight} alt="Seu Truck" className="h-10 hidden dark:block" />
+          <img src={logoDark} alt="Seu Truck" className="h-10 dark:hidden" />
           <div>
-            <h1 className="text-lg font-semibold text-sidebar-foreground">TruckFlow</h1>
             <p className="text-xs text-muted-foreground">Gestão de Frota</p>
           </div>
         </div>
