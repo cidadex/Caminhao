@@ -4,10 +4,14 @@ import { trucks, drivers, mileageRecords, maintenances, fuelExpenses, extraExpen
 import { eq, desc, and, gte } from "drizzle-orm";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-});
+function getOpenAI(): OpenAI {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  if (!apiKey) {
+    throw new Error("Missing OpenAI API key. Please set OPENAI_API_KEY.");
+  }
+  return new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
+}
 
 export interface FleetHealthSummary {
   truckId: string;
@@ -387,7 +391,7 @@ Regras IMPORTANTES:
 
   try {
     console.log("Calling OpenAI API for truck diagnostic...");
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
