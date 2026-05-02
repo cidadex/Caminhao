@@ -8,6 +8,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import PDFDocument from "pdfkit";
+import crypto from "crypto";
 import {
   insertTruckSchema,
   insertDriverSchema,
@@ -17,6 +18,7 @@ import {
   insertExtraExpenseSchema,
   insertRouteSchema,
   insertFineSchema,
+  insertTrackingSessionSchema,
   loginSchema,
   trucks,
   drivers,
@@ -25,6 +27,7 @@ import {
   fuelExpenses,
   extraExpenses,
 } from "@shared/schema";
+import { z } from "zod";
 import { getFleetHealthSummary, generateTruckDiagnostic } from "./fleet-health";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "truckflow-secret-key-2024";
@@ -1124,6 +1127,147 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching financial summary:", error);
       res.status(500).json({ message: "Erro ao buscar resumo financeiro" });
+    }
+  });
+
+  // ==================== GPS Tracking ====================
+
+  // List tracking sessions (admin/auth)
+  app.get("/api/tracking/sessions", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const activeOnly = req.query.active === "true";
+      const sessions = await storage.getTrackingSessions(activeOnly);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching tracking sessions:", error);
+      res.status(500).json({ message: "Erro ao buscar sessões de rastreamento" });
+    }
+  });
+
+  // Get one session detail
+  app.get("/api/tracking/sessions/:id", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const session = await storage.getTrackingSession(req.params.id);
+      if (!session) return res.status(404).json({ message: "Sessão não encontrada" });
+      res.json(session);
+    } catch (error) {
+      console.error("Error fetching tracking session:", error);
+      res.status(500).json({ message: "Erro ao buscar sessão" });
+    }
+  });
+
+  // Get session location history
+  app.get("/api/tracking/sessions/:id/locations", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 500;
+      const points = await storage.getLocationPointsBySession(req.params.id, limit);
+      res.json(points);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      res.status(500).json({ message: "Erro ao buscar localizações" });
+    }
+  });
+
+  // Create new tracking session (returns share token)
+  app.post("/api/tracking/sessions", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const validation = insertTrackingSessionSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+      }
+      const truck = await storage.getTruck(validation.data.truckId);
+      if (!truck) return res.status(404).json({ message: "Caminhão não encontrado" });
+
+      const shareToken = crypto.randomBytes(24).toString("hex");
+      const session = await storage.createTrackingSession({ ...validation.data, shareToken });
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error creating tracking session:", error);
+      res.status(500).json({ message: "Erro ao criar sessão" });
+    }
+  });
+
+  // End a session
+  app.post("/api/tracking/sessions/:id/end", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const session = await storage.endTrackingSession(req.params.id);
+      if (!session) return res.status(404).json({ message: "Sessão não encontrada" });
+      res.json(session);
+    } catch (error) {
+      console.error("Error ending session:", error);
+      res.status(500).json({ message: "Erro ao encerrar sessão" });
+    }
+  });
+
+  // Delete a session
+  app.delete("/api/tracking/sessions/:id", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const ok = await storage.deleteTrackingSession(req.params.id);
+      if (!ok) return res.status(404).json({ message: "Sessão não encontrada" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting session:", error);
+      res.status(500).json({ message: "Erro ao excluir sessão" });
+    }
+  });
+
+  // ---------- Public driver endpoints (token-based, no auth) ----------
+
+  // Validate token and return session info for the driver page
+  app.get("/api/tracking/share/:token", async (req: Request, res: Response) => {
+    try {
+      const session = await storage.getTrackingSessionByToken(req.params.token);
+      if (!session) return res.status(404).json({ message: "Link inválido ou expirado" });
+      res.json({
+        id: session.id,
+        status: session.status,
+        truck: session.truck ? { number: session.truck.number, plate: session.truck.plate, model: session.truck.model } : null,
+        driver: session.driver ? { name: session.driver.name } : null,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+      });
+    } catch (error) {
+      console.error("Error validating share token:", error);
+      res.status(500).json({ message: "Erro ao validar link" });
+    }
+  });
+
+  // Driver phone posts a GPS point
+  const locationInputSchema = z.object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    speed: z.number().nullable().optional(),
+    heading: z.number().nullable().optional(),
+    accuracy: z.number().nullable().optional(),
+    altitude: z.number().nullable().optional(),
+  });
+
+  app.post("/api/tracking/share/:token/location", async (req: Request, res: Response) => {
+    try {
+      const session = await storage.getTrackingSessionByToken(req.params.token);
+      if (!session) return res.status(404).json({ message: "Link inválido" });
+      if (session.status !== "active") {
+        return res.status(403).json({ message: "Sessão encerrada" });
+      }
+
+      const validation = locationInputSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+      }
+      const d = validation.data;
+      const point = await storage.addLocationPoint({
+        sessionId: session.id,
+        lat: String(d.lat),
+        lng: String(d.lng),
+        speed: d.speed != null ? String(d.speed) : null,
+        heading: d.heading != null ? String(d.heading) : null,
+        accuracy: d.accuracy != null ? String(d.accuracy) : null,
+        altitude: d.altitude != null ? String(d.altitude) : null,
+      });
+      res.status(201).json({ ok: true, id: point.id });
+    } catch (error) {
+      console.error("Error storing location:", error);
+      res.status(500).json({ message: "Erro ao salvar localização" });
     }
   });
 

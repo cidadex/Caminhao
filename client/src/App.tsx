@@ -30,6 +30,8 @@ import DriversPage from "@/pages/drivers";
 import FinesPage from "@/pages/fines";
 import GestaoTruckPage from "@/pages/gestaotruck";
 import CalendarPage from "@/pages/calendar";
+import TrackingPage from "@/pages/tracking";
+import DriverTrackingPage from "@/pages/driver-tracking";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: () => JSX.Element; adminOnly?: boolean }) {
@@ -110,6 +112,9 @@ function Router() {
       </Route>
       <Route path="/gestaotruck">
         <GestaoTruckPage />
+      </Route>
+      <Route path="/rastrear/:token">
+        <DriverTrackingPage />
       </Route>
       <Route path="/login">
         {user ? <Redirect to="/" /> : <LoginPage />}
@@ -207,6 +212,11 @@ function Router() {
       <Route path="/calendario">
         <AuthenticatedLayout>
           <ProtectedRoute component={CalendarPage} />
+        </AuthenticatedLayout>
+      </Route>
+      <Route path="/rastreamento">
+        <AuthenticatedLayout>
+          <ProtectedRoute component={TrackingPage} />
         </AuthenticatedLayout>
       </Route>
       <Route>

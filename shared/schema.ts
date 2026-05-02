@@ -160,6 +160,37 @@ export const receivables = pgTable("receivables", {
   notes: text("notes"),
 });
 
+// GPS Tracking - Sessões de rastreamento ativas
+export const trackingSessions = pgTable("tracking_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  truckId: varchar("truck_id").notNull().references(() => trucks.id, { onDelete: "cascade" }),
+  driverId: varchar("driver_id").references(() => drivers.id, { onDelete: "set null" }),
+  shareToken: varchar("share_token").notNull().unique(),
+  status: text("status").notNull().default("active"),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  endedAt: timestamp("ended_at"),
+  notes: text("notes"),
+  lastLat: decimal("last_lat", { precision: 10, scale: 7 }),
+  lastLng: decimal("last_lng", { precision: 10, scale: 7 }),
+  lastSpeed: decimal("last_speed", { precision: 6, scale: 2 }),
+  lastHeading: decimal("last_heading", { precision: 6, scale: 2 }),
+  lastAccuracy: decimal("last_accuracy", { precision: 8, scale: 2 }),
+  lastUpdateAt: timestamp("last_update_at"),
+});
+
+// GPS Tracking - Pontos históricos
+export const locationPoints = pgTable("location_points", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => trackingSessions.id, { onDelete: "cascade" }),
+  lat: decimal("lat", { precision: 10, scale: 7 }).notNull(),
+  lng: decimal("lng", { precision: 10, scale: 7 }).notNull(),
+  speed: decimal("speed", { precision: 6, scale: 2 }),
+  heading: decimal("heading", { precision: 6, scale: 2 }),
+  accuracy: decimal("accuracy", { precision: 8, scale: 2 }),
+  altitude: decimal("altitude", { precision: 8, scale: 2 }),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
 // Truck Daily Status (Status diário dos caminhões - Calendário)
 export const truckDailyStatus = pgTable("truck_daily_status", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -273,6 +304,20 @@ export const insertReceivableSchema = createInsertSchema(receivables).omit({ id:
 export const insertRouteSchema = createInsertSchema(routes).omit({ id: true });
 export const insertFineSchema = createInsertSchema(fines).omit({ id: true });
 export const insertTruckDailyStatusSchema = createInsertSchema(truckDailyStatus).omit({ id: true });
+export const insertTrackingSessionSchema = createInsertSchema(trackingSessions).omit({
+  id: true,
+  shareToken: true,
+  startedAt: true,
+  endedAt: true,
+  lastLat: true,
+  lastLng: true,
+  lastSpeed: true,
+  lastHeading: true,
+  lastAccuracy: true,
+  lastUpdateAt: true,
+  status: true,
+});
+export const insertLocationPointSchema = createInsertSchema(locationPoints).omit({ id: true, timestamp: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -313,6 +358,13 @@ export type FineWithDetails = Fine & { truck?: Truck; driver?: Driver };
 export type InsertTruckDailyStatus = z.infer<typeof insertTruckDailyStatusSchema>;
 export type TruckDailyStatus = typeof truckDailyStatus.$inferSelect;
 export type TruckDailyStatusWithTruck = TruckDailyStatus & { truck?: Truck };
+
+export type InsertTrackingSession = z.infer<typeof insertTrackingSessionSchema>;
+export type TrackingSession = typeof trackingSessions.$inferSelect;
+export type TrackingSessionWithDetails = TrackingSession & { truck?: Truck; driver?: Driver };
+
+export type InsertLocationPoint = z.infer<typeof insertLocationPointSchema>;
+export type LocationPoint = typeof locationPoints.$inferSelect;
 
 // Login schema
 export const loginSchema = z.object({

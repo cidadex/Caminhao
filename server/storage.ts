@@ -11,6 +11,8 @@ import {
   routes,
   fines,
   truckDailyStatus,
+  trackingSessions,
+  locationPoints,
   type User,
   type InsertUser,
   type Driver,
@@ -38,6 +40,11 @@ import {
   type TruckDailyStatus,
   type InsertTruckDailyStatus,
   type TruckDailyStatusWithTruck,
+  type TrackingSession,
+  type InsertTrackingSession,
+  type TrackingSessionWithDetails,
+  type LocationPoint,
+  type InsertLocationPoint,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, isNull } from "drizzle-orm";
@@ -98,6 +105,16 @@ export interface IStorage {
   createFine(fine: InsertFine): Promise<Fine>;
   updateFine(id: string, fine: Partial<InsertFine>): Promise<Fine | undefined>;
   deleteFine(id: string): Promise<boolean>;
+
+  // GPS Tracking
+  getTrackingSessions(activeOnly?: boolean): Promise<TrackingSessionWithDetails[]>;
+  getTrackingSession(id: string): Promise<TrackingSessionWithDetails | undefined>;
+  getTrackingSessionByToken(token: string): Promise<TrackingSessionWithDetails | undefined>;
+  createTrackingSession(session: InsertTrackingSession & { shareToken: string }): Promise<TrackingSession>;
+  endTrackingSession(id: string): Promise<TrackingSession | undefined>;
+  deleteTrackingSession(id: string): Promise<boolean>;
+  addLocationPoint(point: InsertLocationPoint): Promise<LocationPoint>;
+  getLocationPointsBySession(sessionId: string, limit?: number): Promise<LocationPoint[]>;
 
   getTruckDailyStatuses(startDate: Date, endDate: Date): Promise<TruckDailyStatusWithTruck[]>;
   getTruckDailyStatusesByDate(date: Date): Promise<TruckDailyStatusWithTruck[]>;
@@ -704,6 +721,97 @@ export class DatabaseStorage implements IStorage {
   async deleteTruckDailyStatus(id: string): Promise<boolean> {
     const result = await db.delete(truckDailyStatus).where(eq(truckDailyStatus.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getTrackingSessions(activeOnly = false): Promise<TrackingSessionWithDetails[]> {
+    const rows = await db
+      .select()
+      .from(trackingSessions)
+      .leftJoin(trucks, eq(trackingSessions.truckId, trucks.id))
+      .leftJoin(drivers, eq(trackingSessions.driverId, drivers.id))
+      .orderBy(desc(trackingSessions.startedAt));
+
+    return rows
+      .filter(r => !activeOnly || r.tracking_sessions.status === "active")
+      .map(r => ({
+        ...r.tracking_sessions,
+        truck: r.trucks || undefined,
+        driver: r.drivers || undefined,
+      }));
+  }
+
+  async getTrackingSession(id: string): Promise<TrackingSessionWithDetails | undefined> {
+    const [row] = await db
+      .select()
+      .from(trackingSessions)
+      .leftJoin(trucks, eq(trackingSessions.truckId, trucks.id))
+      .leftJoin(drivers, eq(trackingSessions.driverId, drivers.id))
+      .where(eq(trackingSessions.id, id));
+    if (!row) return undefined;
+    return {
+      ...row.tracking_sessions,
+      truck: row.trucks || undefined,
+      driver: row.drivers || undefined,
+    };
+  }
+
+  async getTrackingSessionByToken(token: string): Promise<TrackingSessionWithDetails | undefined> {
+    const [row] = await db
+      .select()
+      .from(trackingSessions)
+      .leftJoin(trucks, eq(trackingSessions.truckId, trucks.id))
+      .leftJoin(drivers, eq(trackingSessions.driverId, drivers.id))
+      .where(eq(trackingSessions.shareToken, token));
+    if (!row) return undefined;
+    return {
+      ...row.tracking_sessions,
+      truck: row.trucks || undefined,
+      driver: row.drivers || undefined,
+    };
+  }
+
+  async createTrackingSession(session: InsertTrackingSession & { shareToken: string }): Promise<TrackingSession> {
+    const [created] = await db.insert(trackingSessions).values(session).returning();
+    return created;
+  }
+
+  async endTrackingSession(id: string): Promise<TrackingSession | undefined> {
+    const [updated] = await db
+      .update(trackingSessions)
+      .set({ status: "ended", endedAt: new Date() })
+      .where(eq(trackingSessions.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteTrackingSession(id: string): Promise<boolean> {
+    const result = await db.delete(trackingSessions).where(eq(trackingSessions.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async addLocationPoint(point: InsertLocationPoint): Promise<LocationPoint> {
+    const [created] = await db.insert(locationPoints).values(point).returning();
+    await db
+      .update(trackingSessions)
+      .set({
+        lastLat: point.lat,
+        lastLng: point.lng,
+        lastSpeed: point.speed,
+        lastHeading: point.heading,
+        lastAccuracy: point.accuracy,
+        lastUpdateAt: new Date(),
+      })
+      .where(eq(trackingSessions.id, point.sessionId));
+    return created;
+  }
+
+  async getLocationPointsBySession(sessionId: string, limit = 500): Promise<LocationPoint[]> {
+    return db
+      .select()
+      .from(locationPoints)
+      .where(eq(locationPoints.sessionId, sessionId))
+      .orderBy(desc(locationPoints.timestamp))
+      .limit(limit);
   }
 
   async upsertTruckDailyStatus(truckId: string, date: Date, status: string, location?: string, notes?: string): Promise<TruckDailyStatus> {

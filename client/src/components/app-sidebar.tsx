@@ -31,6 +31,7 @@ import {
   MapPin,
   AlertTriangle,
   CalendarDays,
+  Navigation,
 } from "lucide-react";
 import logoLight from "@/assets/logo-light.png";
 import logoDark from "@/assets/logo-dark.png";
@@ -90,6 +91,11 @@ const menuItems = [
     title: "Calendário",
     url: "/calendario",
     icon: CalendarDays,
+  },
+  {
+    title: "Rastreamento",
+    url: "/rastreamento",
+    icon: Navigation,
   },
 ];
 
