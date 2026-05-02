@@ -12,12 +12,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
+export interface TrackingMarkerPopupRow {
+  label: string;
+  value: string;
+}
+
 export interface TrackingMarker {
   id: string;
   lat: number;
   lng: number;
   label: string;
-  popup?: string;
+  popupTitle?: string;
+  popupRows?: TrackingMarkerPopupRow[];
   color?: string;
 }
 

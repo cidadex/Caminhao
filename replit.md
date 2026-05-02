@@ -47,6 +47,14 @@ Core entities:
 - `trucks`: Vehicle registry with status and total kilometers
 - `mileageRecords`: Trip logs with revenue and route information
 - `maintenances`: Service records with costs and optional receipt attachments
+- `trackingSessions`: Real-time GPS tracking sessions per truck/driver, with `shareToken` for the public driver link and last-known position columns
+- `locationPoints`: GPS history points (lat/lng/speed/heading/accuracy) attached to a tracking session
+
+### GPS Tracking Module
+- Admin page at `/rastreamento` shows a live OpenStreetMap (Leaflet) of all active trucks, polled every 5s, with session list, history view, and session management.
+- Public driver page at `/rastrear/:token` (no auth) uses the browser Geolocation API (`watchPosition`) to capture position every move and batch-POSTs every 8s to `/api/tracking/share/:token/location`. Buffers offline, requests a screen wake lock, and shows live status to the driver.
+- Backend endpoints: `GET/POST/DELETE /api/tracking/sessions`, `GET /api/tracking/sessions/:id`, `GET /api/tracking/sessions/:id/locations`, `POST /api/tracking/sessions/:id/end`, plus the public token-based `GET /api/tracking/share/:token` and `POST /api/tracking/share/:token/location`.
+- Map library: `leaflet` + `react-leaflet` with OpenStreetMap tiles (no API key required).
 
 ### Design System
 The application follows documented design guidelines (`design_guidelines.md`) based on enterprise design systems. Key principles include data-first hierarchy, professional clarity, and efficiency. The color system uses blue as primary (#0D6EFD) with neutral backgrounds.
