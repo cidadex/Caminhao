@@ -1240,6 +1240,7 @@ export async function registerRoutes(
     heading: z.number().nullable().optional(),
     accuracy: z.number().nullable().optional(),
     altitude: z.number().nullable().optional(),
+    capturedAt: z.string().datetime().optional(),
   });
 
   app.post("/api/tracking/share/:token/location", async (req: Request, res: Response) => {
@@ -1263,7 +1264,8 @@ export async function registerRoutes(
         heading: d.heading != null ? String(d.heading) : null,
         accuracy: d.accuracy != null ? String(d.accuracy) : null,
         altitude: d.altitude != null ? String(d.altitude) : null,
-      });
+        ...(d.capturedAt ? { timestamp: new Date(d.capturedAt) } : {}),
+      } as any);
       res.status(201).json({ ok: true, id: point.id });
     } catch (error) {
       console.error("Error storing location:", error);

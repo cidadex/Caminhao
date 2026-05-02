@@ -120,9 +120,13 @@ export default function TrackingPage() {
       lat: Number(s.lastLat),
       lng: Number(s.lastLng),
       label: s.truck?.number || "Caminhão",
-      popup: `<b>Caminhão ${s.truck?.number || "-"}</b><br/>Placa: ${s.truck?.plate || "-"}<br/>Motorista: ${
-        s.driver?.name || "-"
-      }<br/>Velocidade: ${speedKmh(s.lastSpeed)}<br/>Atualizado ${relativeTime(s.lastUpdateAt)}`,
+      popupTitle: `Caminhão ${s.truck?.number || "-"}`,
+      popupRows: [
+        { label: "Placa", value: s.truck?.plate || "-" },
+        { label: "Motorista", value: s.driver?.name || "-" },
+        { label: "Velocidade", value: speedKmh(s.lastSpeed) },
+        { label: "Atualizado", value: relativeTime(s.lastUpdateAt) },
+      ],
       color: "#2563eb",
     }));
 

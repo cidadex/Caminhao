@@ -34,6 +34,7 @@ interface PendingPoint {
   heading: number | null;
   accuracy: number | null;
   altitude: number | null;
+  capturedAt: string;
 }
 
 const SEND_INTERVAL_MS = 8000; // batch send every 8s
@@ -116,34 +117,33 @@ export default function DriverTrackingPage() {
     }
   }
 
-  function flushPending() {
+  async function flushPending() {
     if (!token || !navigator.onLine || pendingRef.current.length === 0) return;
-    const batch = [...pendingRef.current];
+    const batch = [...pendingRef.current].sort((a, b) =>
+      a.capturedAt.localeCompare(b.capturedAt)
+    );
     pendingRef.current = [];
     setBufferedCount(pendingRef.current.length);
 
-    // send sequentially to keep server simple; if anything fails, requeue
-    Promise.all(
-      batch.map((p) =>
-        fetch(`/api/tracking/share/${token}/location`, {
+    let okCount = 0;
+    // Send strictly in chronological order; on failure, requeue rest and stop.
+    for (let i = 0; i < batch.length; i++) {
+      const p = batch[i];
+      try {
+        const r = await fetch(`/api/tracking/share/${token}/location`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(p),
-        })
-          .then((r) => {
-            if (!r.ok) throw new Error("send failed");
-            return p;
-          })
-          .catch(() => {
-            pendingRef.current.push(p);
-            return null;
-          })
-      )
-    ).then((results) => {
-      const ok = results.filter(Boolean).length;
-      if (ok > 0) setSentCount((c) => c + ok);
-      setBufferedCount(pendingRef.current.length);
-    });
+        });
+        if (!r.ok) throw new Error("send failed");
+        okCount++;
+      } catch {
+        pendingRef.current.unshift(...batch.slice(i));
+        break;
+      }
+    }
+    if (okCount > 0) setSentCount((c) => c + okCount);
+    setBufferedCount(pendingRef.current.length);
   }
 
   function startWatching() {
@@ -170,6 +170,7 @@ export default function DriverTrackingPage() {
           heading: c.heading != null && !Number.isNaN(c.heading) ? c.heading : null,
           accuracy: c.accuracy != null && !Number.isNaN(c.accuracy) ? c.accuracy : null,
           altitude: c.altitude != null && !Number.isNaN(c.altitude) ? c.altitude : null,
+          capturedAt: new Date(pos.timestamp || Date.now()).toISOString(),
         });
         setBufferedCount(pendingRef.current.length);
       },

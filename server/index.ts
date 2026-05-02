@@ -26,6 +26,21 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+const SENSITIVE_KEYS = new Set(["token", "shareToken", "password", "secret", "apiKey", "accessToken", "refreshToken"]);
+
+function redactSensitive(value: any): any {
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) return value.map(redactSensitive);
+  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = SENSITIVE_KEYS.has(k) && typeof v === "string" ? "[REDACTED]" : redactSensitive(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -53,7 +68,8 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const redacted = redactSensitive(capturedJsonResponse);
+        logLine += ` :: ${JSON.stringify(redacted)}`;
       }
 
       log(logLine);

@@ -100,8 +100,32 @@ export function TrackingMap({
     layer.clearLayers();
     markers.forEach((m) => {
       const marker = L.marker([m.lat, m.lng], { icon: makeTruckIcon(m.color) });
-      if (m.popup) marker.bindPopup(m.popup);
-      else if (m.label) marker.bindPopup(m.label);
+      const popupEl = document.createElement("div");
+      if (m.popupTitle) {
+        const titleEl = document.createElement("div");
+        titleEl.style.fontWeight = "600";
+        titleEl.style.marginBottom = "4px";
+        titleEl.textContent = m.popupTitle;
+        popupEl.appendChild(titleEl);
+      } else if (m.label) {
+        const titleEl = document.createElement("div");
+        titleEl.style.fontWeight = "600";
+        titleEl.textContent = m.label;
+        popupEl.appendChild(titleEl);
+      }
+      (m.popupRows ?? []).forEach((row) => {
+        const rowEl = document.createElement("div");
+        rowEl.style.fontSize = "12px";
+        const labelEl = document.createElement("span");
+        labelEl.style.color = "#6b7280";
+        labelEl.textContent = `${row.label}: `;
+        const valueEl = document.createElement("span");
+        valueEl.textContent = row.value;
+        rowEl.appendChild(labelEl);
+        rowEl.appendChild(valueEl);
+        popupEl.appendChild(rowEl);
+      });
+      if (popupEl.childNodes.length > 0) marker.bindPopup(popupEl);
       marker.addTo(layer);
     });
 
