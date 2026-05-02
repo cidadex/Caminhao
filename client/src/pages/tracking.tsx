@@ -46,7 +46,17 @@ import {
   ArrowLeft,
   RefreshCw,
 } from "lucide-react";
-import type { Truck, Driver, TrackingSessionWithDetails, LocationPoint } from "@shared/schema";
+import type { Truck, Driver, TrackingSessionWithDetails, LocationPoint, TripSummary } from "@shared/schema";
+
+type SessionWithSummary = TrackingSessionWithDetails & { summary?: TripSummary };
+
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds < 0) return "0min";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+}
 
 function formatDateTime(d: string | Date | null | undefined) {
   if (!d) return "-";
@@ -77,13 +87,43 @@ export default function TrackingPage() {
   const [shareDialogSession, setShareDialogSession] = useState<TrackingSessionWithDetails | null>(null);
   const { toast } = useToast();
 
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery<TrackingSessionWithDetails[]>({
-    queryKey: ["/api/tracking/sessions"],
+  const [filterDriverId, setFilterDriverId] = useState<string>("all");
+  const [filterTruckId, setFilterTruckId] = useState<string>("all");
+  const [filterStart, setFilterStart] = useState<string>("");
+  const [filterEnd, setFilterEnd] = useState<string>("");
+
+  const { data: drivers = [] } = useQuery<Driver[]>({ queryKey: ["/api/drivers"] });
+  const { data: trucks = [] } = useQuery<Truck[]>({ queryKey: ["/api/trucks"] });
+
+  const { data: sessions = [], isLoading: sessionsLoading } = useQuery<SessionWithSummary[]>({
+    queryKey: ["/api/tracking/sessions", { includeSummary: true }],
+    queryFn: async () => {
+      const res = await fetch("/api/tracking/sessions?includeSummary=true", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!res.ok) throw new Error("Erro ao buscar sessões");
+      return res.json();
+    },
     refetchInterval: 5000,
   });
 
   const activeSessions = sessions.filter((s) => s.status === "active");
-  const endedSessions = sessions.filter((s) => s.status !== "active");
+  const filteredEnded = sessions
+    .filter((s) => s.status !== "active")
+    .filter((s) => filterDriverId === "all" || s.driverId === filterDriverId)
+    .filter((s) => filterTruckId === "all" || s.truckId === filterTruckId)
+    .filter((s) => !filterStart || new Date(s.startedAt) >= new Date(filterStart))
+    .filter((s) => !filterEnd || new Date(s.startedAt) <= new Date(filterEnd + "T23:59:59"));
+
+  const endedSessions = filteredEnded;
+  const endedTotals = endedSessions.reduce(
+    (acc, s) => {
+      acc.km += s.summary?.kmTraveled ?? 0;
+      acc.seconds += s.summary?.durationSeconds ?? 0;
+      return acc;
+    },
+    { km: 0, seconds: 0 },
+  );
 
   const selected = sessions.find((s) => s.id === selectedSessionId) ?? null;
 
@@ -248,6 +288,67 @@ export default function TrackingPage() {
         </TabsContent>
 
         <TabsContent value="ended" className="space-y-3 mt-4">
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="grid gap-3 md:grid-cols-4">
+                <div>
+                  <Label>Motorista</Label>
+                  <Select value={filterDriverId} onValueChange={setFilterDriverId}>
+                    <SelectTrigger data-testid="filter-driver">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {drivers.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Caminhão</Label>
+                  <Select value={filterTruckId} onValueChange={setFilterTruckId}>
+                    <SelectTrigger data-testid="filter-truck">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {trucks.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.number} · {t.plate}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>De</Label>
+                  <Input type="date" value={filterStart} onChange={(e) => setFilterStart(e.target.value)} data-testid="filter-start" />
+                </div>
+                <div>
+                  <Label>Até</Label>
+                  <Input type="date" value={filterEnd} onChange={(e) => setFilterEnd(e.target.value)} data-testid="filter-end" />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm pt-2 border-t">
+                <div>
+                  <span className="text-muted-foreground">Total km:</span>{" "}
+                  <strong data-testid="total-km">{endedTotals.km.toFixed(1)} km</strong>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total tempo:</span>{" "}
+                  <strong data-testid="total-duration">{formatDuration(endedTotals.seconds)}</strong>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Viagens:</span>{" "}
+                  <strong>{endedSessions.length}</strong>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {endedSessions.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-muted-foreground">
@@ -281,7 +382,7 @@ function SessionCard({
   onEnd,
   onDelete,
 }: {
-  session: TrackingSessionWithDetails;
+  session: SessionWithSummary;
   onSelect: () => void;
   onShare: () => void;
   onEnd: () => void;
@@ -336,6 +437,26 @@ function SessionCard({
                 </div>
               </div>
             </div>
+            {session.summary && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm pt-2 border-t">
+                <div>
+                  <div className="text-xs text-muted-foreground">Distância</div>
+                  <div data-testid={`text-km-${session.id}`}>
+                    {session.summary.kmTraveled.toFixed(1)} km
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Duração</div>
+                  <div data-testid={`text-duration-${session.id}`}>
+                    {formatDuration(session.summary.durationSeconds)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Vel. média</div>
+                  <div>{session.summary.averageSpeedKmh.toFixed(0)} km/h</div>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={onSelect} data-testid={`button-detail-${session.id}`}>

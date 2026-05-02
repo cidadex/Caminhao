@@ -51,10 +51,21 @@ Core entities:
 - `locationPoints`: GPS history points (lat/lng/speed/heading/accuracy) attached to a tracking session
 
 ### GPS Tracking Module
-- Admin page at `/rastreamento` shows a live OpenStreetMap (Leaflet) of all active trucks, polled every 5s, with session list, history view, and session management.
-- Public driver page at `/rastrear/:token` (no auth) uses the browser Geolocation API (`watchPosition`) to capture position every move and batch-POSTs every 8s to `/api/tracking/share/:token/location`. Buffers offline, requests a screen wake lock, and shows live status to the driver.
-- Backend endpoints: `GET/POST/DELETE /api/tracking/sessions`, `GET /api/tracking/sessions/:id`, `GET /api/tracking/sessions/:id/locations`, `POST /api/tracking/sessions/:id/end`, plus the public token-based `GET /api/tracking/share/:token` and `POST /api/tracking/share/:token/location`.
+- Admin page at `/rastreamento` shows a live OpenStreetMap (Leaflet) of all active trucks, polled every 5s, with session list (km/duração/vel-média per session via `?includeSummary=true`), filters by motorista/caminhão/datas, totals row, and session management.
+- Public driver page at `/rastrear/:token` (no auth) is kept as a fallback for ad-hoc shares. The primary capture path is the **native mobile app** in `mobile/` (Expo).
+- Drivers are managed at `/motoristas` and have an extra 🔑 button per card to set the username/password used by the mobile app (writes to `drivers.username` / `drivers.passwordHash`).
+- Backend endpoints — admin: `GET/POST/DELETE /api/tracking/sessions` (with `includeSummary/driverId/truckId/startDate/endDate` filters), `GET /api/tracking/sessions/:id`, `GET /api/tracking/sessions/:id/summary`, `GET /api/tracking/sessions/:id/locations`, `POST /api/tracking/sessions/:id/end`, plus public token-based `GET /api/tracking/share/:token` and `POST /api/tracking/share/:token/location`, plus admin `POST /api/drivers/:id/credentials` and `/reset-password`.
+- Backend endpoints — driver mobile API (JWT with `role: "driver"`): `POST /api/driver/login`, `GET /api/driver/me`, `POST /api/driver/trips/start` (resumes active session if any), `POST /api/driver/trips/:id/locations` (batch ≤200, returns `409 { code: "session_ended" }` if the session was closed), `POST /api/driver/trips/:id/end`, `GET /api/driver/trips`.
+- Trip summary helper: `server/trip-summary.ts` (Haversine, drops accuracy>100m and implied speed>200km/h).
 - Map library: `leaflet` + `react-leaflet` with OpenStreetMap tiles (no API key required).
+
+### Native Driver App (`mobile/`)
+- React Native + Expo (SDK 51) app for the driver phone, written in TypeScript.
+- Background GPS capture using `expo-location` + `expo-task-manager` with Android `foregroundService` and iOS `UIBackgroundModes: ["location"]` — works with the screen locked and the phone in the pocket.
+- Offline-first buffer in `expo-sqlite`: every GPS point is persisted locally, then flushed in batches every 5 s. Backend `409 session_ended` clears the buffer. Up to 6 drains are attempted before ending a trip.
+- Auth token stored in `expo-secure-store`. JWT issued by `/api/driver/login` (30-day expiry, claim `role: "driver"`).
+- Navigation: `@react-navigation/native-stack` with screens `Login → Home → Trip → Summary` plus `History`.
+- Build pipeline configured for **EAS** (`mobile/eas.json`); see `mobile/README.md` for setup, permissions, and limitations of Expo Go vs. development builds.
 
 ### Design System
 The application follows documented design guidelines (`design_guidelines.md`) based on enterprise design systems. Key principles include data-first hierarchy, professional clarity, and efficiency. The color system uses blue as primary (#0D6EFD) with neutral backgrounds.

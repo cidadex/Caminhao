@@ -34,6 +34,8 @@ export const drivers = pgTable("drivers", {
   emergencyContactRelation: text("emergency_contact_relation"),
   healthInsurance: text("health_insurance"),
   status: text("status").notNull().default("active"),
+  username: text("username").unique(),
+  passwordHash: text("password_hash"),
 });
 
 // Trucks table
@@ -293,7 +295,7 @@ export const finesRelations = relations(fines, ({ one }) => ({
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertDriverSchema = createInsertSchema(drivers).omit({ id: true });
+export const insertDriverSchema = createInsertSchema(drivers).omit({ id: true, passwordHash: true });
 export const insertTruckSchema = createInsertSchema(trucks).omit({ id: true });
 export const insertMileageRecordSchema = createInsertSchema(mileageRecords).omit({ id: true, kmTraveled: true, valuePerKm: true });
 export const insertMaintenanceSchema = createInsertSchema(maintenances).omit({ id: true });
@@ -373,3 +375,17 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// Trip summary type returned by the API to admin and mobile clients
+export type TripSummary = {
+  kmTraveled: number;
+  durationSeconds: number;
+  averageSpeedKmh: number;
+  pointsCount: number;
+  startedAt: string;
+  endedAt: string | null;
+};
+
+export type TrackingSessionWithSummary = TrackingSessionWithDetails & {
+  summary?: TripSummary;
+};

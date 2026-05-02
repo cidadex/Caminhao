@@ -29,6 +29,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { getFleetHealthSummary, generateTruckDiagnostic } from "./fleet-health";
+import { computeTripSummary } from "./trip-summary";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "truckflow-secret-key-2024";
 
@@ -78,6 +79,11 @@ function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string; username: string; role: string };
+    // Driver tokens may NOT access the admin/fleet API surface — only the /api/driver/* endpoints,
+    // which use driverAuthMiddleware exclusively.
+    if (decoded.role === "driver") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
     req.user = decoded;
     next();
   } catch (err: any) {
@@ -91,6 +97,12 @@ function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
     return res.status(403).json({ message: "Acesso negado" });
   }
   next();
+}
+
+function sanitizeDriver<T extends { passwordHash?: string | null } | null | undefined>(d: T): T {
+  if (!d) return d;
+  const { passwordHash: _omit, ...rest } = d as any;
+  return rest as T;
 }
 
 async function seedDefaultUsers() {
@@ -158,17 +170,17 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/drivers", async (_req: Request, res: Response) => {
+  app.get("/api/drivers", authMiddleware as any, async (_req: Request, res: Response) => {
     try {
       const driversList = await storage.getDrivers();
-      res.json(driversList);
+      res.json(driversList.map((d) => sanitizeDriver(d)));
     } catch (error) {
       console.error("Error fetching drivers:", error);
       res.status(500).json({ message: "Erro ao buscar motoristas" });
     }
   });
 
-  app.post("/api/drivers", async (req: Request, res: Response) => {
+  app.post("/api/drivers", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
     try {
       const data = { ...req.body };
       if (data.birthDate && typeof data.birthDate === "string") {
@@ -182,7 +194,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
       }
       const driver = await storage.createDriver(validation.data);
-      res.status(201).json(driver);
+      res.status(201).json(sanitizeDriver(driver));
     } catch (error: any) {
       console.error("Error creating driver:", error);
       if (error.message?.includes("unique") || error.code === "23505") {
@@ -192,7 +204,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/drivers/:id", async (req: Request, res: Response) => {
+  app.patch("/api/drivers/:id", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const data = { ...req.body };
@@ -202,18 +214,24 @@ export async function registerRoutes(
       if (data.cnhExpiry && typeof data.cnhExpiry === "string") {
         data.cnhExpiry = new Date(data.cnhExpiry);
       }
-      const driver = await storage.updateDriver(id, data);
+      // Validate against the insert schema (partial) — this OMITS passwordHash, so credentials
+      // can never be modified through the generic edit endpoint. Use the dedicated routes instead.
+      const validation = insertDriverSchema.partial().safeParse(data);
+      if (!validation.success) {
+        return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+      }
+      const driver = await storage.updateDriver(id, validation.data);
       if (!driver) {
         return res.status(404).json({ message: "Motorista não encontrado" });
       }
-      res.json(driver);
+      res.json(sanitizeDriver(driver));
     } catch (error: any) {
       console.error("Error updating driver:", error);
       res.status(500).json({ message: "Erro ao atualizar motorista" });
     }
   });
 
-  app.delete("/api/drivers/:id", async (req: Request, res: Response) => {
+  app.delete("/api/drivers/:id", authMiddleware as any, adminMiddleware as any, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteDriver(id);
@@ -1132,15 +1150,50 @@ export async function registerRoutes(
 
   // ==================== GPS Tracking ====================
 
-  // List tracking sessions (admin/auth)
+  // List tracking sessions (admin/auth) — optionally filter by driver/truck/period
   app.get("/api/tracking/sessions", authMiddleware as any, async (req: Request, res: Response) => {
     try {
       const activeOnly = req.query.active === "true";
-      const sessions = await storage.getTrackingSessions(activeOnly);
-      res.json(sessions);
+      const includeSummary = req.query.includeSummary === "true";
+      const driverId = req.query.driverId as string | undefined;
+      const truckId = req.query.truckId as string | undefined;
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      const startDate = startDateStr ? new Date(startDateStr) : null;
+      const endDate = endDateStr ? new Date(endDateStr) : null;
+
+      let sessions = await storage.getTrackingSessions(activeOnly);
+      if (driverId) sessions = sessions.filter(s => s.driverId === driverId);
+      if (truckId) sessions = sessions.filter(s => s.truckId === truckId);
+      if (startDate) sessions = sessions.filter(s => new Date(s.startedAt) >= startDate);
+      if (endDate) sessions = sessions.filter(s => new Date(s.startedAt) <= endDate);
+
+      if (!includeSummary) {
+        return res.json(sessions);
+      }
+      const enriched = await Promise.all(
+        sessions.map(async (s) => {
+          const points = await storage.getAllLocationPointsBySession(s.id);
+          return { ...s, summary: computeTripSummary(s, points) };
+        }),
+      );
+      res.json(enriched);
     } catch (error) {
       console.error("Error fetching tracking sessions:", error);
       res.status(500).json({ message: "Erro ao buscar sessões de rastreamento" });
+    }
+  });
+
+  // Trip summary (km, duration, avg speed) for a single session
+  app.get("/api/tracking/sessions/:id/summary", authMiddleware as any, async (req: Request, res: Response) => {
+    try {
+      const session = await storage.getTrackingSession(req.params.id);
+      if (!session) return res.status(404).json({ message: "Sessão não encontrada" });
+      const points = await storage.getAllLocationPointsBySession(req.params.id);
+      res.json(computeTripSummary(session, points));
+    } catch (error) {
+      console.error("Error computing summary:", error);
+      res.status(500).json({ message: "Erro ao calcular resumo" });
     }
   });
 
@@ -1272,6 +1325,326 @@ export async function registerRoutes(
       res.status(500).json({ message: "Erro ao salvar localização" });
     }
   });
+
+  // ==================== Admin: gerenciar credenciais do motorista ====================
+
+  const driverCredentialsSchema = z.object({
+    username: z.string().min(3, "Usuário deve ter ao menos 3 caracteres").max(40),
+    password: z.string().min(6, "Senha deve ter ao menos 6 caracteres").max(100),
+  });
+
+  const driverPasswordSchema = z.object({
+    password: z.string().min(6, "Senha deve ter ao menos 6 caracteres").max(100),
+  });
+
+  app.post(
+    "/api/drivers/:id/credentials",
+    authMiddleware as any,
+    adminMiddleware as any,
+    async (req: Request, res: Response) => {
+      try {
+        const driver = await storage.getDriver(req.params.id);
+        if (!driver) return res.status(404).json({ message: "Motorista não encontrado" });
+        const validation = driverCredentialsSchema.safeParse(req.body);
+        if (!validation.success) {
+          return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+        }
+        const { username, password } = validation.data;
+        const existing = await storage.getDriverByUsername(username);
+        if (existing && existing.id !== driver.id) {
+          return res.status(409).json({ message: "Usuário já em uso" });
+        }
+        const passwordHash = await bcrypt.hash(password, 10);
+        const updated = await storage.setDriverCredentials(driver.id, username, passwordHash);
+        if (!updated) return res.status(500).json({ message: "Erro ao salvar credenciais" });
+        const { passwordHash: _ph, ...safe } = updated;
+        res.json(safe);
+      } catch (error: any) {
+        console.error("Error setting driver credentials:", error);
+        if (error.code === "23505") {
+          return res.status(409).json({ message: "Usuário já em uso" });
+        }
+        res.status(500).json({ message: "Erro ao salvar credenciais" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/drivers/:id/reset-password",
+    authMiddleware as any,
+    adminMiddleware as any,
+    async (req: Request, res: Response) => {
+      try {
+        const driver = await storage.getDriver(req.params.id);
+        if (!driver) return res.status(404).json({ message: "Motorista não encontrado" });
+        if (!driver.username) {
+          return res.status(400).json({ message: "Motorista ainda não possui usuário. Defina um primeiro." });
+        }
+        const validation = driverPasswordSchema.safeParse(req.body);
+        if (!validation.success) {
+          return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+        }
+        const passwordHash = await bcrypt.hash(validation.data.password, 10);
+        await storage.setDriverPasswordHash(driver.id, passwordHash);
+        res.json({ ok: true });
+      } catch (error) {
+        console.error("Error resetting driver password:", error);
+        res.status(500).json({ message: "Erro ao redefinir senha" });
+      }
+    },
+  );
+
+  // ==================== Driver mobile API (JWT, role=driver) ====================
+
+  function driverAuthMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ message: "Token não fornecido" });
+    const token = authHeader.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "Token inválido" });
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; username: string; role: string };
+      if (decoded.role !== "driver") {
+        return res.status(403).json({ message: "Token não pertence a um motorista" });
+      }
+      req.user = decoded;
+      next();
+    } catch (err: any) {
+      console.error("Driver JWT Verify Error:", err.message);
+      return res.status(401).json({ message: "Token expirado ou inválido" });
+    }
+  }
+
+  app.post("/api/driver/login", async (req: Request, res: Response) => {
+    try {
+      const validation = loginSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: "Dados inválidos" });
+      }
+      const { username, password } = validation.data;
+      const driver = await storage.getDriverByUsername(username);
+      if (!driver || !driver.passwordHash) {
+        return res.status(401).json({ message: "Usuário ou senha inválidos" });
+      }
+      if (driver.status !== "active") {
+        return res.status(403).json({ message: "Motorista inativo. Procure o gestor." });
+      }
+      const ok = await bcrypt.compare(password, driver.passwordHash);
+      if (!ok) {
+        return res.status(401).json({ message: "Usuário ou senha inválidos" });
+      }
+      const token = jwt.sign(
+        { id: driver.id, username: driver.username!, role: "driver" },
+        JWT_SECRET,
+        { expiresIn: "30d" },
+      );
+      const truck = await storage.getTruckByMainDriverId(driver.id);
+      res.json({
+        token,
+        driver: {
+          id: driver.id,
+          username: driver.username,
+          name: driver.name,
+          phone: driver.phone,
+        },
+        truck: truck
+          ? { id: truck.id, number: truck.number, plate: truck.plate, model: truck.model }
+          : null,
+      });
+    } catch (error) {
+      console.error("Driver login error:", error);
+      res.status(500).json({ message: "Erro interno" });
+    }
+  });
+
+  app.get("/api/driver/me", driverAuthMiddleware as any, async (req: AuthRequest, res: Response) => {
+    try {
+      const driver = await storage.getDriver(req.user!.id);
+      if (!driver) return res.status(404).json({ message: "Motorista não encontrado" });
+      const truck = await storage.getTruckByMainDriverId(driver.id);
+      const active = await storage.getActiveTrackingSessionByDriver(driver.id);
+      res.json({
+        driver: { id: driver.id, username: driver.username, name: driver.name, phone: driver.phone },
+        truck: truck
+          ? { id: truck.id, number: truck.number, plate: truck.plate, model: truck.model }
+          : null,
+        activeSession: active
+          ? { id: active.id, startedAt: active.startedAt, truckId: active.truckId, status: active.status }
+          : null,
+      });
+    } catch (error) {
+      console.error("Driver me error:", error);
+      res.status(500).json({ message: "Erro ao buscar dados" });
+    }
+  });
+
+  const tripStartSchema = z.object({
+    truckId: z.string().uuid().optional(),
+    notes: z.string().max(500).optional(),
+  });
+
+  app.post(
+    "/api/driver/trips/start",
+    driverAuthMiddleware as any,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const driverId = req.user!.id;
+        const driver = await storage.getDriver(driverId);
+        if (!driver) return res.status(404).json({ message: "Motorista não encontrado" });
+
+        const existingActive = await storage.getActiveTrackingSessionByDriver(driverId);
+        if (existingActive) {
+          return res.status(200).json({
+            id: existingActive.id,
+            shareToken: existingActive.shareToken,
+            startedAt: existingActive.startedAt,
+            truckId: existingActive.truckId,
+            status: existingActive.status,
+            resumed: true,
+          });
+        }
+
+        const validation = tripStartSchema.safeParse(req.body || {});
+        if (!validation.success) {
+          return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+        }
+        let truckId = validation.data.truckId;
+        if (!truckId) {
+          const truck = await storage.getTruckByMainDriverId(driverId);
+          if (!truck) {
+            return res.status(400).json({
+              message: "Nenhum caminhão vinculado a este motorista. Informe o ID do caminhão.",
+            });
+          }
+          truckId = truck.id;
+        } else {
+          const t = await storage.getTruck(truckId);
+          if (!t) return res.status(404).json({ message: "Caminhão não encontrado" });
+        }
+
+        const shareToken = crypto.randomBytes(24).toString("hex");
+        const session = await storage.createTrackingSession({
+          truckId,
+          driverId,
+          notes: validation.data.notes || null,
+          shareToken,
+        } as any);
+        res.status(201).json({
+          id: session.id,
+          shareToken: session.shareToken,
+          startedAt: session.startedAt,
+          truckId: session.truckId,
+          status: session.status,
+        });
+      } catch (error) {
+        console.error("Driver start trip error:", error);
+        res.status(500).json({ message: "Erro ao iniciar viagem" });
+      }
+    },
+  );
+
+  const driverLocationsSchema = z.object({
+    points: z
+      .array(
+        z.object({
+          lat: z.number().min(-90).max(90),
+          lng: z.number().min(-180).max(180),
+          speed: z.number().nullable().optional(),
+          heading: z.number().nullable().optional(),
+          accuracy: z.number().nullable().optional(),
+          altitude: z.number().nullable().optional(),
+          capturedAt: z.string().datetime(),
+        }),
+      )
+      .min(1)
+      .max(200),
+  });
+
+  app.post(
+    "/api/driver/trips/:id/locations",
+    driverAuthMiddleware as any,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const session = await storage.getTrackingSession(req.params.id);
+        if (!session) return res.status(404).json({ message: "Sessão não encontrada" });
+        if (session.driverId !== req.user!.id) {
+          return res.status(403).json({ message: "Sessão não pertence a este motorista" });
+        }
+        if (session.status !== "active") {
+          return res.status(409).json({ message: "Sessão encerrada", code: "session_ended" });
+        }
+        const validation = driverLocationsSchema.safeParse(req.body);
+        if (!validation.success) {
+          return res.status(400).json({ message: "Dados inválidos", errors: validation.error.errors });
+        }
+        const points = validation.data.points.map((d) => ({
+          sessionId: session.id,
+          lat: String(d.lat),
+          lng: String(d.lng),
+          speed: d.speed != null ? String(d.speed) : null,
+          heading: d.heading != null ? String(d.heading) : null,
+          accuracy: d.accuracy != null ? String(d.accuracy) : null,
+          altitude: d.altitude != null ? String(d.altitude) : null,
+          timestamp: new Date(d.capturedAt),
+        })) as any[];
+        const created = await storage.addLocationPointsBatch(points);
+        res.status(201).json({ ok: true, accepted: created.length });
+      } catch (error) {
+        console.error("Driver upload locations error:", error);
+        res.status(500).json({ message: "Erro ao salvar pontos" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/driver/trips/:id/end",
+    driverAuthMiddleware as any,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const session = await storage.getTrackingSession(req.params.id);
+        if (!session) return res.status(404).json({ message: "Sessão não encontrada" });
+        if (session.driverId !== req.user!.id) {
+          return res.status(403).json({ message: "Sessão não pertence a este motorista" });
+        }
+        if (session.status !== "active") {
+          const points = await storage.getAllLocationPointsBySession(session.id);
+          return res.json({ session, summary: computeTripSummary(session, points) });
+        }
+        const ended = await storage.endTrackingSession(session.id);
+        const points = await storage.getAllLocationPointsBySession(session.id);
+        res.json({ session: ended, summary: computeTripSummary(ended!, points) });
+      } catch (error) {
+        console.error("Driver end trip error:", error);
+        res.status(500).json({ message: "Erro ao encerrar viagem" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/driver/trips",
+    driverAuthMiddleware as any,
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const sessions = await storage.getTrackingSessionsByDriver(req.user!.id);
+        const enriched = await Promise.all(
+          sessions.map(async (s) => {
+            const points = await storage.getAllLocationPointsBySession(s.id);
+            return {
+              id: s.id,
+              status: s.status,
+              startedAt: s.startedAt,
+              endedAt: s.endedAt,
+              truck: s.truck ? { number: s.truck.number, plate: s.truck.plate } : null,
+              summary: computeTripSummary(s, points),
+            };
+          }),
+        );
+        res.json(enriched);
+      } catch (error) {
+        console.error("Driver list trips error:", error);
+        res.status(500).json({ message: "Erro ao buscar viagens" });
+      }
+    },
+  );
 
   app.post("/api/admin/seed-demo-data", authMiddleware as any, adminMiddleware as any, async (req: AuthRequest, res: Response) => {
     try {

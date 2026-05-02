@@ -56,6 +56,7 @@ import {
   Trash2,
   Loader2,
   Search,
+  KeyRound,
 } from "lucide-react";
 
 const driverFormSchema = z.object({
@@ -619,14 +620,131 @@ function DriverFormDialog({
   );
 }
 
+function CredentialsDialog({
+  driver,
+  open,
+  onOpenChange,
+}: {
+  driver: Driver | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  const hasUsername = !!driver?.username;
+
+  const setMutation = useMutation({
+    mutationFn: async () => {
+      if (!driver) throw new Error("Motorista não selecionado");
+      return apiRequest("POST", `/api/drivers/${driver.id}/credentials`, { username, password });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/drivers"] });
+      toast({ title: "Credenciais salvas", description: "O motorista já pode entrar no app." });
+      onOpenChange(false);
+      setUsername("");
+      setPassword("");
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      if (!driver) throw new Error("Motorista não selecionado");
+      return apiRequest("POST", `/api/drivers/${driver.id}/reset-password`, { password });
+    },
+    onSuccess: () => {
+      toast({ title: "Senha redefinida" });
+      onOpenChange(false);
+      setPassword("");
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        onOpenChange(o);
+        if (!o) {
+          setUsername("");
+          setPassword("");
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5" /> Credenciais do app
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {hasUsername
+              ? `Usuário atual: ${driver?.username}. Você pode redefinir a senha ou trocar o usuário.`
+              : "Defina um usuário e senha para o motorista entrar no aplicativo móvel."}
+          </p>
+          <div>
+            <label className="text-sm font-medium">Usuário</label>
+            <Input
+              placeholder={driver?.username || "ex: joao.silva"}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              data-testid="input-driver-username"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Senha</label>
+            <Input
+              type="password"
+              placeholder="Mínimo 6 caracteres"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              data-testid="input-driver-password"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          {hasUsername && (
+            <Button
+              variant="secondary"
+              disabled={!password || password.length < 6 || resetMutation.isPending}
+              onClick={() => resetMutation.mutate()}
+              data-testid="button-reset-password"
+            >
+              {resetMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Redefinir senha
+            </Button>
+          )}
+          <Button
+            disabled={!username || username.length < 3 || !password || password.length < 6 || setMutation.isPending}
+            onClick={() => setMutation.mutate()}
+            data-testid="button-save-credentials"
+          >
+            {setMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {hasUsername ? "Trocar usuário" : "Salvar"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DriverCard({
   driver,
   onEdit,
   onDelete,
+  onCredentials,
 }: {
   driver: Driver;
   onEdit: (driver: Driver) => void;
   onDelete: (driver: Driver) => void;
+  onCredentials: (driver: Driver) => void;
 }) {
   const age = driver.birthDate ? calculateAge(new Date(driver.birthDate)) : null;
 
@@ -654,6 +772,15 @@ function DriverCard({
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => onCredentials(driver)}
+              data-testid={`button-credentials-driver-${driver.id}`}
+              title={driver.username ? `Usuário: ${driver.username}` : "Definir credenciais do app"}
+            >
+              <KeyRound className={`h-4 w-4 ${driver.username ? "text-primary" : ""}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => onEdit(driver)}
               data-testid={`button-edit-driver-${driver.id}`}
             >
@@ -671,6 +798,12 @@ function DriverCard({
         </div>
 
         <div className="mt-4 grid gap-2 text-sm">
+          {driver.username && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <KeyRound className="h-3 w-3" />
+              App: {driver.username}
+            </div>
+          )}
           {driver.phone && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Phone className="h-3 w-3" />
@@ -707,6 +840,7 @@ export default function DriversPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | undefined>();
   const [deletingDriver, setDeletingDriver] = useState<Driver | null>(null);
+  const [credentialsDriver, setCredentialsDriver] = useState<Driver | null>(null);
 
   const { data: drivers, isLoading } = useQuery<Driver[]>({
     queryKey: ["/api/drivers"],
@@ -784,6 +918,7 @@ export default function DriversPage() {
               driver={driver}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onCredentials={setCredentialsDriver}
             />
           ))}
         </div>
@@ -807,6 +942,14 @@ export default function DriversPage() {
         driver={editingDriver}
         open={dialogOpen}
         onOpenChange={handleDialogClose}
+      />
+
+      <CredentialsDialog
+        driver={credentialsDriver}
+        open={!!credentialsDriver}
+        onOpenChange={(o) => {
+          if (!o) setCredentialsDriver(null);
+        }}
       />
 
       <AlertDialog open={!!deletingDriver} onOpenChange={() => setDeletingDriver(null)}>

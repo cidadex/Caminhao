@@ -56,9 +56,13 @@ export interface IStorage {
 
   getDrivers(): Promise<Driver[]>;
   getDriver(id: string): Promise<Driver | undefined>;
+  getDriverByUsername(username: string): Promise<Driver | undefined>;
   createDriver(driver: InsertDriver): Promise<Driver>;
   updateDriver(id: string, driver: Partial<InsertDriver>): Promise<Driver | undefined>;
+  setDriverCredentials(id: string, username: string | null, passwordHash: string | null): Promise<Driver | undefined>;
+  setDriverPasswordHash(id: string, passwordHash: string): Promise<Driver | undefined>;
   deleteDriver(id: string): Promise<boolean>;
+  getTruckByMainDriverId(driverId: string): Promise<Truck | undefined>;
 
   getTrucks(): Promise<Truck[]>;
   getTrucksWithDrivers(): Promise<TruckWithDriver[]>;
@@ -108,13 +112,17 @@ export interface IStorage {
 
   // GPS Tracking
   getTrackingSessions(activeOnly?: boolean): Promise<TrackingSessionWithDetails[]>;
+  getTrackingSessionsByDriver(driverId: string): Promise<TrackingSessionWithDetails[]>;
+  getActiveTrackingSessionByDriver(driverId: string): Promise<TrackingSessionWithDetails | undefined>;
   getTrackingSession(id: string): Promise<TrackingSessionWithDetails | undefined>;
   getTrackingSessionByToken(token: string): Promise<TrackingSessionWithDetails | undefined>;
   createTrackingSession(session: InsertTrackingSession & { shareToken: string }): Promise<TrackingSession>;
   endTrackingSession(id: string): Promise<TrackingSession | undefined>;
   deleteTrackingSession(id: string): Promise<boolean>;
   addLocationPoint(point: InsertLocationPoint): Promise<LocationPoint>;
+  addLocationPointsBatch(points: InsertLocationPoint[]): Promise<LocationPoint[]>;
   getLocationPointsBySession(sessionId: string, limit?: number): Promise<LocationPoint[]>;
+  getAllLocationPointsBySession(sessionId: string): Promise<LocationPoint[]>;
 
   getTruckDailyStatuses(startDate: Date, endDate: Date): Promise<TruckDailyStatusWithTruck[]>;
   getTruckDailyStatusesByDate(date: Date): Promise<TruckDailyStatusWithTruck[]>;
@@ -183,6 +191,34 @@ export class DatabaseStorage implements IStorage {
 
   async getDrivers(): Promise<Driver[]> {
     return db.select().from(drivers).orderBy(drivers.name);
+  }
+
+  async getDriverByUsername(username: string): Promise<Driver | undefined> {
+    const [driver] = await db.select().from(drivers).where(eq(drivers.username, username));
+    return driver || undefined;
+  }
+
+  async setDriverCredentials(id: string, username: string | null, passwordHash: string | null): Promise<Driver | undefined> {
+    const [updated] = await db
+      .update(drivers)
+      .set({ username, passwordHash })
+      .where(eq(drivers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async setDriverPasswordHash(id: string, passwordHash: string): Promise<Driver | undefined> {
+    const [updated] = await db
+      .update(drivers)
+      .set({ passwordHash })
+      .where(eq(drivers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async getTruckByMainDriverId(driverId: string): Promise<Truck | undefined> {
+    const [truck] = await db.select().from(trucks).where(eq(trucks.mainDriverId, driverId));
+    return truck || undefined;
   }
 
   async getDriver(id: string): Promise<Driver | undefined> {
@@ -805,6 +841,32 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async addLocationPointsBatch(points: InsertLocationPoint[]): Promise<LocationPoint[]> {
+    if (points.length === 0) return [];
+    const created = await db.insert(locationPoints).values(points).returning();
+    // Use the chronologically latest point to update the session's last-known position
+    const sorted = [...created].sort((a, b) => {
+      const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return tb - ta;
+    });
+    const latest = sorted[0];
+    if (latest) {
+      await db
+        .update(trackingSessions)
+        .set({
+          lastLat: latest.lat,
+          lastLng: latest.lng,
+          lastSpeed: latest.speed,
+          lastHeading: latest.heading,
+          lastAccuracy: latest.accuracy,
+          lastUpdateAt: new Date(),
+        })
+        .where(eq(trackingSessions.id, latest.sessionId));
+    }
+    return created;
+  }
+
   async getLocationPointsBySession(sessionId: string, limit = 500): Promise<LocationPoint[]> {
     return db
       .select()
@@ -812,6 +874,45 @@ export class DatabaseStorage implements IStorage {
       .where(eq(locationPoints.sessionId, sessionId))
       .orderBy(desc(locationPoints.timestamp))
       .limit(limit);
+  }
+
+  async getAllLocationPointsBySession(sessionId: string): Promise<LocationPoint[]> {
+    return db
+      .select()
+      .from(locationPoints)
+      .where(eq(locationPoints.sessionId, sessionId))
+      .orderBy(locationPoints.timestamp);
+  }
+
+  async getTrackingSessionsByDriver(driverId: string): Promise<TrackingSessionWithDetails[]> {
+    const rows = await db
+      .select()
+      .from(trackingSessions)
+      .leftJoin(trucks, eq(trackingSessions.truckId, trucks.id))
+      .leftJoin(drivers, eq(trackingSessions.driverId, drivers.id))
+      .where(eq(trackingSessions.driverId, driverId))
+      .orderBy(desc(trackingSessions.startedAt));
+    return rows.map(r => ({
+      ...r.tracking_sessions,
+      truck: r.trucks || undefined,
+      driver: r.drivers || undefined,
+    }));
+  }
+
+  async getActiveTrackingSessionByDriver(driverId: string): Promise<TrackingSessionWithDetails | undefined> {
+    const [row] = await db
+      .select()
+      .from(trackingSessions)
+      .leftJoin(trucks, eq(trackingSessions.truckId, trucks.id))
+      .leftJoin(drivers, eq(trackingSessions.driverId, drivers.id))
+      .where(and(eq(trackingSessions.driverId, driverId), eq(trackingSessions.status, "active")))
+      .orderBy(desc(trackingSessions.startedAt));
+    if (!row) return undefined;
+    return {
+      ...row.tracking_sessions,
+      truck: row.trucks || undefined,
+      driver: row.drivers || undefined,
+    };
   }
 
   async upsertTruckDailyStatus(truckId: string, date: Date, status: string, location?: string, notes?: string): Promise<TruckDailyStatus> {

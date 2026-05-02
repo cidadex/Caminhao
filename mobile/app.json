@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "TruckFlow Motorista",
+    "slug": "truckflow-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "scheme": "truckflow",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.truckflow.driver",
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "fetch"],
+        "NSLocationWhenInUseUsageDescription": "O TruckFlow usa o GPS para registrar a localização da viagem em andamento.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "O TruckFlow usa o GPS em segundo plano para continuar registrando a viagem mesmo com o aplicativo fechado ou a tela bloqueada.",
+        "NSLocationAlwaysUsageDescription": "O TruckFlow usa o GPS em segundo plano para continuar registrando a viagem mesmo com o aplicativo fechado ou a tela bloqueada."
+      }
+    },
+    "android": {
+      "package": "com.truckflow.driver",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "WAKE_LOCK"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0f172a"
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permita acesso ao GPS em segundo plano para registrar a viagem mesmo com o app fechado.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
